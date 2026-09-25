@@ -86,16 +86,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines); guard !name.isEmpty else { return }
         let layout = Layouts.capture(name: name, tracker: tracker)
-        if let index = layouts.firstIndex(where: { $0.name == name }) { layouts[index] = layout } else { layouts.append(layout) }
-        do { try Layouts.save(layouts) } catch { NSAlert(error: error).runModal() }
-        rebuildMenu()
+        var updated = layouts
+        if let index = updated.firstIndex(where: { $0.name == name }) { updated[index] = layout } else { updated.append(layout) }
+        persist(updated)
     }
 
     @objc private func restoreMenuItem(_ sender: NSMenuItem) { if let index = sender.representedObject as? Int { restore(index) } }
     @objc private func deleteLayout(_ sender: NSMenuItem) {
         guard let index = sender.representedObject as? Int, layouts.indices.contains(index) else { return }
-        layouts.remove(at: index); do { try Layouts.save(layouts) } catch { NSAlert(error: error).runModal() }; rebuildMenu()
+        var updated = layouts
+        updated.remove(at: index)
+        persist(updated)
     }
+
+    // Only adopt changes once they are on disk, so a failed write never leaves memory ahead of the file.
+    private func persist(_ updated: [Layout]) {
+        do { try Layouts.save(updated); layouts = updated } catch { NSAlert(error: error).runModal() }
+        rebuildMenu()
+    }
+
     private func restore(_ index: Int) { guard layouts.indices.contains(index), let tracker else { return }; Layouts.restore(layouts[index], tracker: tracker) }
 
     private func snap(_ action: SnapAction) {

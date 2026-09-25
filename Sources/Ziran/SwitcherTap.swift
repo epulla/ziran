@@ -8,6 +8,7 @@ final class SwitcherTap {
     private var panel: SwitcherPanel!
     private var tap: CFMachPort?
     private var previousApp: NSRunningApplication?
+    private var listOpen = false
     var layoutsMenu: (() -> NSMenu)? { get { panel.layoutsMenu } set { panel.layoutsMenu = newValue } }
 
     init(tracker: WindowTracker) {
@@ -70,14 +71,15 @@ final class SwitcherTap {
 
     private func run(_ effect: Switcher.Effect) {
         switch effect {
-        case .update: panel.show(switcher)
+        case .update: listOpen = switcher.mode == .list; panel.show(switcher)
         case .focus(let window):
             panel.hide()
+            listOpen = false
             if let element = tracker.element(window.id) { AX.focus(element) } else { NSRunningApplication(processIdentifier: window.pid)?.activate() }
         case .close:
-            let wasKey = panel.isKeyWindow
             panel.hide()
-            if wasKey { previousApp?.activate(options: []) }
+            if listOpen { previousApp?.activate(options: []) }
+            listOpen = false
         case .none: break
         }
     }
