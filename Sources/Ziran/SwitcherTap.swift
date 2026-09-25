@@ -3,6 +3,7 @@ import CoreGraphics
 
 @MainActor
 final class SwitcherTap {
+    private static let digits: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
     var switcher = Switcher()
     private let tracker: WindowTracker
     private var panel: SwitcherPanel!
@@ -52,6 +53,10 @@ final class SwitcherTap {
                 } else if switcher.mode == .strip || switcher.mode == .dropdown {
                     run(switcher.handle(flags.contains(.maskShift) ? .shiftTab : .tab))
                 }
+                return true
+            }
+            if switcher.mode != .closed && flags.contains(.maskCommand), let index = Self.digits.firstIndex(of: keycode) {
+                run(switcher.handle(.jump(index)))
                 return true
             }
             guard switcher.mode == .strip || switcher.mode == .dropdown else { return false }

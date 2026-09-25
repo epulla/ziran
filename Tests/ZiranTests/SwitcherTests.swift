@@ -69,6 +69,28 @@ func switcherSequences(keys: [Switcher.Key], expected: Switcher.Effect, mode: Sw
 }
 
 @Test(arguments: [
+    ([Switcher.Key.jump(0)], Switcher.Effect.focus(fixture[0]), Switcher.Mode.closed),
+    ([.jump(2)], .focus(fixture[4]), .closed),
+    ([.tab, .tab, .down, .jump(1)], .focus(fixture[1]), .closed),
+    ([.up, .jump(3)], .focus(fixture[3]), .closed),
+    ([.jump(9)], .none, .strip),
+])
+func switcherJump(keys: [Switcher.Key], expected: Switcher.Effect, mode: Switcher.Mode) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    var effect = Switcher.Effect.update
+    for key in keys { effect = switcher.handle(key) }
+    #expect(effect == expected)
+    #expect(switcher.mode == mode)
+}
+
+@Test func switcherJumpSingleApp() {
+    var switcher = Switcher()
+    _ = switcher.open([fixture[0]])
+    #expect(switcher.handle(.jump(0)) == .focus(fixture[0]))
+}
+
+@Test(arguments: [
     ([Switcher.Key.select(2)], Switcher.Effect.update, Switcher.Mode.strip, 0, 2),
     ([Switcher.Key.down, .select(0)], .update, .dropdown, 0, 1),
     ([Switcher.Key.up, .select(3)], .update, .list, 3, 1),

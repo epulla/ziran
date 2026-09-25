@@ -3,7 +3,7 @@ import CoreGraphics
 
 struct Switcher {
     enum Mode: Equatable { case closed, strip, dropdown, list }
-    enum Key: Equatable { case tab, shiftTab, up, down, enter, escape, optionUp, query(String), select(Int), pin(CGWindowID) }
+    enum Key: Equatable { case tab, shiftTab, up, down, enter, escape, optionUp, query(String), select(Int), pin(CGWindowID), jump(Int) }
     enum Effect: Equatable { case none, update, focus(WindowInfo), close }
 
     private(set) var mode: Mode = .closed
@@ -47,6 +47,10 @@ struct Switcher {
             if let selected, mode == .dropdown, let index = dropdown.firstIndex(of: selected) { row = index }
             return .update
         }
+        if case .jump(let index) = key {
+            guard handle(.select(index)) == .update else { return .none }
+            return mode == .strip ? selection.map { finish(.focus($0)) } ?? close() : handle(.enter)
+        }
         if case .select(let index) = key {
             switch mode {
             case .strip:
@@ -71,7 +75,7 @@ struct Switcher {
             case .enter:
                 guard let selection else { return close() }
                 return finish(.focus(selection))
-            case .tab, .shiftTab, .optionUp, .escape, .select, .pin: return .none
+            case .tab, .shiftTab, .optionUp, .escape, .select, .pin, .jump: return .none
             }
         }
         switch key {
@@ -86,7 +90,7 @@ struct Switcher {
         case .up:
             if mode == .dropdown && row > 0 { row -= 1 } else { mode = .list; row = 0; query = "" }
             return .update
-        case .query, .escape, .select, .pin: return .none
+        case .query, .escape, .select, .pin, .jump: return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
             guard let selection else { return close() }

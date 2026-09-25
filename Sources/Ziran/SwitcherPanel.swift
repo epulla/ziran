@@ -44,7 +44,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             let field = search ?? makeSearch(height: (32 * scale).rounded(), width: listWidth - 16)
             field.font = .systemFont(ofSize: fontSize); field.stringValue = s.query
             root.addArrangedSubview(field)
-            root.addArrangedSubview(hint("↩ switch · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
+            root.addArrangedSubview(hint("↩ switch · ⌘1-9 jump · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
             if s.list.isEmpty {
                 root.addArrangedSubview(empty(size: rowHeight, width: listWidth - 16))
             } else {
@@ -80,7 +80,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                         root.addArrangedSubview(line)
                     }
                 }
-                root.addArrangedSubview(hint("= pin · ↑↓ move · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
+                root.addArrangedSubview(hint("= pin · ↑↓ move · ⌘1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
             }
         }
         visualEffect.subviews.forEach { $0.removeFromSuperview() }
@@ -140,6 +140,13 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                 icon.centerXAnchor.constraint(equalTo: tile.centerXAnchor), icon.centerYAnchor.constraint(equalTo: tile.centerYAnchor),
                 icon.widthAnchor.constraint(equalToConstant: size * 0.78), icon.heightAnchor.constraint(equalToConstant: size * 0.78),
             ])
+            if s.mode == .strip, let badge = badge(index, size: 11 * scale, selected: false) {
+                tile.addSubview(badge)
+                NSLayoutConstraint.activate([
+                    badge.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: -3),
+                    badge.bottomAnchor.constraint(equalTo: tile.bottomAnchor, constant: -2),
+                ])
+            }
             icons.addArrangedSubview(tile)
         }
         box.addArrangedSubview(icons)
@@ -176,11 +183,28 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             icon.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 8), icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             icon.widthAnchor.constraint(equalToConstant: 28 * scale), icon.heightAnchor.constraint(equalToConstant: 28 * scale),
             label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 10), label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-            label.trailingAnchor.constraint(equalTo: pin.leadingAnchor, constant: -8),
             pin.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -8), pin.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             pin.widthAnchor.constraint(equalToConstant: 28 * scale), pin.heightAnchor.constraint(equalToConstant: 28 * scale),
         ])
+        if let badge = badge(index, size: 11 * scale, selected: selected) {
+            row.addSubview(badge)
+            NSLayoutConstraint.activate([
+                label.trailingAnchor.constraint(equalTo: badge.leadingAnchor, constant: -8),
+                badge.trailingAnchor.constraint(equalTo: pin.leadingAnchor, constant: -6), badge.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            ])
+        } else {
+            label.trailingAnchor.constraint(equalTo: pin.leadingAnchor, constant: -8).isActive = true
+        }
         return row
+    }
+
+    private func badge(_ index: Int, size: CGFloat, selected: Bool) -> NSView? {
+        guard index < 9 else { return nil }
+        let label = NSTextField(labelWithString: "⌘\(index + 1)")
+        label.font = .monospacedDigitSystemFont(ofSize: size, weight: .medium)
+        label.textColor = selected ? .white : .secondaryLabelColor
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
     }
 
     private func hint(_ text: String, size: CGFloat, width: CGFloat) -> NSView {
