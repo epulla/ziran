@@ -53,7 +53,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                     root.addArrangedSubview(
                         row(
                             window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale,
-                            width: listWidth - 16, height: rowHeight))
+                            width: listWidth - 16, height: rowHeight, mode: s.mode))
                     if index == leadingPinnedCount(s.list, pins: s.pins) - 1 && index + 1 < s.list.count {
                         let line = NSBox(); line.boxType = .separator
                         line.widthAnchor.constraint(equalToConstant: listWidth - 16).isActive = true
@@ -73,14 +73,14 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                     root.addArrangedSubview(
                         row(
                             window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale,
-                            width: contentWidth - 16, height: rowHeight))
+                            width: contentWidth - 16, height: rowHeight, mode: s.mode))
                     if index == leadingPinnedCount(s.dropdown, pins: s.pins) - 1 && index + 1 < s.dropdown.count {
                         let line = NSBox(); line.boxType = .separator
                         line.widthAnchor.constraint(equalToConstant: contentWidth - 16).isActive = true
                         root.addArrangedSubview(line)
                     }
                 }
-                root.addArrangedSubview(hint("= pin · ↑↓ move · ⌘1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
+                root.addArrangedSubview(hint("= pin · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
             }
         }
         visualEffect.subviews.forEach { $0.removeFromSuperview() }
@@ -163,7 +163,9 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return box
     }
 
-    private func row(_ window: WindowInfo, index: Int, selected: Bool, pinned: Bool, fontSize: CGFloat, scale: CGFloat, width: CGFloat, height: CGFloat)
+    private func row(
+        _ window: WindowInfo, index: Int, selected: Bool, pinned: Bool, fontSize: CGFloat, scale: CGFloat, width: CGFloat, height: CGFloat, mode: Switcher.Mode
+    )
         -> NSView
     {
         let row = RowView(index: index, onKey: onKey)
@@ -191,7 +193,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             pin.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -8), pin.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             pin.widthAnchor.constraint(equalToConstant: 28 * scale), pin.heightAnchor.constraint(equalToConstant: 28 * scale),
         ])
-        if let badge = badge(index, size: 11 * scale, selected: selected) {
+        if let badge = badge(index, size: 11 * scale, selected: selected, prefix: mode == .list ? "⌘" : "") {
             row.addSubview(badge)
             NSLayoutConstraint.activate([
                 label.trailingAnchor.constraint(equalTo: badge.leadingAnchor, constant: -8),
@@ -203,9 +205,9 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return row
     }
 
-    private func badge(_ index: Int, size: CGFloat, selected: Bool) -> NSView? {
+    private func badge(_ index: Int, size: CGFloat, selected: Bool, prefix: String = "") -> NSView? {
         guard index < 9 else { return nil }
-        let label = NSTextField(labelWithString: "⌘\(index + 1)")
+        let label = NSTextField(labelWithString: "\(prefix)\(index + 1)")
         label.font = .monospacedDigitSystemFont(ofSize: size, weight: .medium)
         label.textColor = selected ? .white : .secondaryLabelColor
         label.translatesAutoresizingMaskIntoConstraints = false
