@@ -28,7 +28,7 @@ remove and re-add Ziran in Accessibility settings.
 | Release ⌥ or press ↩ | Switch to selected item |
 | Esc | Close switcher |
 | = | Pin or unpin selected window in strip or dropdown |
-| ⌘1–9 | Jump straight to Nth item in current view |
+| ⌘1–9 or ⌥1–9 | Jump straight to Nth item in current view |
 | Hover | Select item |
 | Click | Switch to item |
 | Scroll | Move selection |

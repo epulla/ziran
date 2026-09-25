@@ -55,7 +55,7 @@ final class SwitcherTap {
                 }
                 return true
             }
-            if switcher.mode != .closed && flags.contains(.maskCommand), let index = Self.digits.firstIndex(of: keycode) {
+            if switcher.mode != .closed && (flags.contains(.maskCommand) || flags.contains(.maskAlternate)), let index = Self.digits.firstIndex(of: keycode) {
                 run(switcher.handle(.jump(index)))
                 return true
             }
