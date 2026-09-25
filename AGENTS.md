@@ -55,6 +55,7 @@ All state changes go through `Switcher.handle` or `Switcher.open`; UI and event 
 - Keep one concern per PR.
 - PRs include what changed, why, and how to test it.
 - Do not merge without review.
+- Releases: use the `release` skill (`.agents/skills/release`); pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`.
 - Third-party attribution lives only in `README.md`.
 - Verify keyboard and Accessibility behavior manually when changing event handling.
 - Verify bundle launch and permission flow when changing app startup or packaging.

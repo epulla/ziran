@@ -4,7 +4,9 @@ Keyboard-first window switcher for macOS (menubar app, macOS 14+).
 
 ## Install
 
-Build app bundle:
+Download `Ziran-X.Y.Z.zip` from [Releases](https://github.com/epulla/ziran/releases), unzip, move `Ziran.app` to Applications, and open it with right-click → Open (the app is ad-hoc signed).
+
+Or build app bundle:
 
 ```sh
 make bundle
