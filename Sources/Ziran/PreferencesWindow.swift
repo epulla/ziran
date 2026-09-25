@@ -77,9 +77,11 @@ final class PreferencesWindow: NSWindowController {
         controller.view = NSView()
         controller.view.addSubview(stack)
         NSLayoutConstraint.activate([
+            controller.view.widthAnchor.constraint(equalToConstant: 440),
             stack.leadingAnchor.constraint(equalTo: controller.view.leadingAnchor, constant: 16),
             stack.trailingAnchor.constraint(equalTo: controller.view.trailingAnchor, constant: -16),
-            stack.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 20)
+            stack.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 20),
+            stack.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor, constant: -20)
         ])
         updateFontSizeLabels()
         return controller
@@ -107,8 +109,10 @@ final class PreferencesWindow: NSWindowController {
         controller.view = NSView()
         controller.view.addSubview(stack)
         NSLayoutConstraint.activate([
+            controller.view.widthAnchor.constraint(equalToConstant: 440),
             stack.centerXAnchor.constraint(equalTo: controller.view.centerXAnchor),
-            stack.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 20)
+            stack.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 20),
+            stack.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor, constant: -20)
         ])
         return controller
     }

@@ -1,9 +1,12 @@
 import AppKit
-@MainActor final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
+
+@MainActor
+final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private let visualEffect = PanelContentView()
     private let onKey: (Switcher.Key) -> Void
     private var search: NSTextField?
     private var currentIndex = 0
+
     init(onKey: @escaping (Switcher.Key) -> Void) {
         self.onKey = onKey
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
@@ -21,7 +24,9 @@ import AppKit
         visualEffect.layer?.masksToBounds = true
         contentView = visualEffect
     }
+
     override var canBecomeKey: Bool { true }
+
     func show(_ s: Switcher) {
         let fontSize = Settings.fontSize
         let scale = fontSize / 14
@@ -37,10 +42,8 @@ import AppKit
         let listWidth = min((600 * scale).rounded(), (NSScreen.main?.visibleFrame.width ?? 800) - 40)
         var contentWidth = listWidth
         if s.mode == .list {
-            let field = search ?? makeSearch()
+            let field = search ?? makeSearch(height: (32 * scale).rounded(), width: listWidth - 16)
             field.font = .systemFont(ofSize: fontSize); field.stringValue = s.query
-            field.heightAnchor.constraint(equalToConstant: (32 * scale).rounded()).isActive = true
-            field.widthAnchor.constraint(equalToConstant: listWidth - 16).isActive = true
             root.addArrangedSubview(field)
             root.addArrangedSubview(hint("↩ switch · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
             if s.list.isEmpty {
@@ -99,14 +102,19 @@ import AppKit
             search?.currentEditor()?.selectedRange = NSRange(location: search?.stringValue.count ?? 0, length: 0)
         }
     }
+
     func hide() { orderOut(nil) }
-    private func makeSearch() -> NSTextField {
+
+    private func makeSearch(height: CGFloat, width: CGFloat) -> NSTextField {
         let field = NSSearchField()
         field.placeholderString = "Type to filter"
         field.delegate = self
+        field.heightAnchor.constraint(equalToConstant: height).isActive = true
+        field.widthAnchor.constraint(equalToConstant: width).isActive = true
         search = field
         return field
     }
+
     private func strip(_ s: Switcher, fontSize: CGFloat, scale: CGFloat) -> NSView {
         let box = NSStackView()
         box.orientation = .vertical
@@ -115,7 +123,7 @@ import AppKit
         icons.spacing = (8 * scale).rounded()
         let size = (64 * scale).rounded()
         for (index, pid) in s.apps.enumerated() {
-            let tile = TileView(index: index, onKey: onKey)
+            let tile: NSView = s.mode == .strip ? RowView(index: index, onKey: onKey) : NSView()
             tile.wantsLayer = true
             tile.layer?.cornerRadius = size * 0.16
             tile.layer?.backgroundColor = index == s.appIndex ? NSColor.labelColor.withAlphaComponent(0.18).cgColor : NSColor.clear.cgColor
@@ -137,6 +145,7 @@ import AppKit
         box.addArrangedSubview(label)
         return box
     }
+
     private func row(_ window: WindowInfo, index: Int, selected: Bool, pinned: Bool, fontSize: CGFloat, scale: CGFloat, width: CGFloat, height: CGFloat) -> NSView {
         let row = RowView(index: index, onKey: onKey)
         row.wantsLayer = true
@@ -166,6 +175,7 @@ import AppKit
         ])
         return row
     }
+
     private func hint(_ text: String, size: CGFloat, width: CGFloat) -> NSView {
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: size)
@@ -173,6 +183,7 @@ import AppKit
         label.widthAnchor.constraint(equalToConstant: width).isActive = true
         return label
     }
+
     private func empty(size: CGFloat, width: CGFloat) -> NSView {
         let label = NSTextField(labelWithString: "No matches")
         label.font = .systemFont(ofSize: size / 1.5)
@@ -182,10 +193,13 @@ import AppKit
         label.heightAnchor.constraint(equalToConstant: size).isActive = true
         return label
     }
+
     private func leadingPinnedCount(_ windows: [WindowInfo], pins: [CGWindowID]) -> Int {
         return windows.prefix { pins.contains($0.id) }.count
     }
+
     func controlTextDidChange(_ obj: Notification) { if let field = obj.object as? NSTextField { onKey(.query(field.stringValue)) } }
+
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         let key: Switcher.Key?
         switch commandSelector {
@@ -199,20 +213,25 @@ import AppKit
         return false
     }
 }
-@MainActor private final class PanelContentView: NSVisualEffectView {
+
+@MainActor
+private final class PanelContentView: NSVisualEffectView {
     var onKey: ((Switcher.Key) -> Void)?
     var currentIndex = 0
     var scrollAccumulator: CGFloat = 0
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.forEach(removeTrackingArea)
         addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .activeAlways, .inVisibleRect], owner: self))
     }
+
     override func mouseMoved(with event: NSEvent) {
         if let row = hitTest(convert(event.locationInWindow, from: nil))?.nearestRow, row.index != currentIndex {
             onKey?(.select(row.index))
         }
     }
+
     override func scrollWheel(with event: NSEvent) {
         let step: CGFloat = event.hasPreciseScrollingDeltas ? 20 : 1
         scrollAccumulator += event.scrollingDeltaY
@@ -220,34 +239,47 @@ import AppKit
         while scrollAccumulator >= step { scrollAccumulator -= step; onKey?(.select(currentIndex - 1)) }
     }
 }
-@MainActor private class RowView: NSView {
+
+@MainActor
+private final class RowView: NSView {
     let index: Int
     let onKey: (Switcher.Key) -> Void
+
     init(index: Int, onKey: @escaping (Switcher.Key) -> Void) {
         self.index = index
         self.onKey = onKey
         super.init(frame: .zero)
     }
+
     required init?(coder: NSCoder) { fatalError() }
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func mouseDown(with event: NSEvent) { onKey(.select(index)); onKey(.enter) }
 }
-@MainActor private final class TileView: RowView {}
-@MainActor private final class PinButton: NSImageView {
+
+@MainActor
+private final class PinButton: NSImageView {
     var onKey: (() -> Void)?
+
     init(pinned: Bool, selected: Bool) {
         super.init(frame: .zero)
         setPinned(pinned, selected: selected)
         imageScaling = .scaleProportionallyDown
     }
+
     required init?(coder: NSCoder) { fatalError() }
+
     func setPinned(_ pinned: Bool, selected: Bool) {
         image = NSImage(systemSymbolName: pinned ? "pin.fill" : "pin", accessibilityDescription: nil)
         contentTintColor = pinned ? (selected ? .white : .systemOrange) : (selected ? .white : NSColor.secondaryLabelColor.withAlphaComponent(0.5))
     }
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func mouseDown(with event: NSEvent) { onKey?() }
 }
+
 private extension NSView {
     var nearestRow: RowView? {
         var view: NSView? = self
