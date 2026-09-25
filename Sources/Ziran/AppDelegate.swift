@@ -4,6 +4,8 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var accessibilityTimer: Timer?
+    private var tracker: WindowTracker?
+    private var switcherTap: SwitcherTap?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -20,13 +22,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             accessibilityTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
                 guard AXIsProcessTrusted() else { return }
                 timer.invalidate()
-                self?.accessibilityTimer = nil
-                self?.start()
+                MainActor.assumeIsolated {
+                    self?.accessibilityTimer = nil
+                    self?.start()
+                }
             }
         }
     }
 
-    private func start() {}
+    private func start() {
+        let tracker = WindowTracker(); tracker.start(); let tap = SwitcherTap(tracker: tracker)
+        self.tracker = tracker; switcherTap = tap
+        if !tap.start() { NSAlert(error: NSError(domain: "Ziran", code: 1, userInfo: [NSLocalizedDescriptionKey: "Ziran could not install its keyboard tap. Check Accessibility permission."])).runModal() }
+    }
 
     @objc private func quit() {
         NSApp.terminate(nil)
