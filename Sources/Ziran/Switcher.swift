@@ -41,7 +41,10 @@ struct Switcher {
     mutating func handle(_ key: Key) -> Effect {
         guard mode != .closed else { return .none }
         if case .pin(let id) = key {
+            let selected = selection
             if let index = pins.firstIndex(of: id) { pins.remove(at: index) } else { pins.append(id) }
+            if let selected, mode == .list, let index = list.firstIndex(of: selected) { row = index }
+            if let selected, mode == .dropdown, let index = dropdown.firstIndex(of: selected) { row = index }
             return .update
         }
         if case .select(let index) = key {

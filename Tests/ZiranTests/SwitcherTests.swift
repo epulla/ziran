@@ -58,6 +58,16 @@ func switcherSequences(keys: [Switcher.Key], expected: Switcher.Effect, mode: Sw
     #expect(switcher.list == [fixture[0], fixture[1]])
 }
 
+@Test func switcherPinKeepsSelection() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    _ = switcher.handle(.up)
+    _ = switcher.handle(.down)
+    _ = switcher.handle(.pin(5))
+    #expect(switcher.selection == fixture[1])
+    #expect(switcher.row == 2)
+}
+
 @Test(arguments: [
     ([Switcher.Key.select(2)], Switcher.Effect.update, Switcher.Mode.strip, 0, 2),
     ([Switcher.Key.down, .select(0)], .update, .dropdown, 0, 1),

@@ -35,7 +35,6 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         let wasVisible = isVisible
         currentIndex = s.mode == .strip ? s.appIndex : s.row
         visualEffect.currentIndex = currentIndex
-        visualEffect.scrollAccumulator = 0
         let root = NSStackView()
         root.orientation = .vertical; root.alignment = .leading; root.spacing = 2
         root.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
