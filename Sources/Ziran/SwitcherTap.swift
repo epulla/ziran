@@ -57,6 +57,9 @@ final class SwitcherTap {
             case 125: key = .down
             case 36: key = .enter
             case 53: key = .escape
+            case 24:
+                if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
+                return true
             default: key = nil
             }
             if let key { run(switcher.handle(key)); return true }

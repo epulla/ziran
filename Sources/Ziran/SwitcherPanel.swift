@@ -1,11 +1,9 @@
 import AppKit
-
-@MainActor
-final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
-    private let visualEffect = NSVisualEffectView()
+@MainActor final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
+    private let visualEffect = PanelContentView()
     private let onKey: (Switcher.Key) -> Void
     private var search: NSTextField?
-
+    private var currentIndex = 0
     init(onKey: @escaping (Switcher.Key) -> Void) {
         self.onKey = onKey
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
@@ -13,99 +11,250 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         backgroundColor = .clear
         isOpaque = false
+        hasShadow = true
+        visualEffect.onKey = onKey
         visualEffect.material = .hudWindow
+        visualEffect.blendingMode = .behindWindow
         visualEffect.state = .active
         visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = 18
+        visualEffect.layer?.cornerRadius = 14
         visualEffect.layer?.masksToBounds = true
         contentView = visualEffect
     }
-
     override var canBecomeKey: Bool { true }
-
     func show(_ s: Switcher) {
+        let fontSize = Settings.fontSize
+        let scale = fontSize / 14
+        let rowHeight = (40 * scale).rounded()
+        let oldTopLeft = NSPoint(x: frame.minX, y: frame.maxY)
+        let wasVisible = isVisible
+        currentIndex = s.mode == .strip ? s.appIndex : s.row
+        visualEffect.currentIndex = currentIndex
+        visualEffect.scrollAccumulator = 0
         let root = NSStackView()
-        root.orientation = .vertical
-        root.alignment = .centerX
-        root.spacing = 10
-        root.edgeInsets = NSEdgeInsets(top: 18, left: 18, bottom: 18, right: 18)
+        root.orientation = .vertical; root.alignment = .leading; root.spacing = 2
+        root.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        let listWidth = min((600 * scale).rounded(), (NSScreen.main?.visibleFrame.width ?? 800) - 40)
+        var contentWidth = listWidth
         if s.mode == .list {
             let field = search ?? makeSearch()
-            field.stringValue = s.query
+            field.font = .systemFont(ofSize: fontSize); field.stringValue = s.query
+            field.heightAnchor.constraint(equalToConstant: (32 * scale).rounded()).isActive = true
+            field.widthAnchor.constraint(equalToConstant: listWidth - 16).isActive = true
             root.addArrangedSubview(field)
-            let start = max(0, s.row - 11)
-            for (index, window) in s.list.enumerated().dropFirst(start).prefix(12) { root.addArrangedSubview(row(window.appName + " — " + window.title, selected: index == s.row)) }
-            let layouts = NSButton(title: "Layouts", target: nil, action: nil)
-            layouts.isEnabled = false
-            root.addArrangedSubview(layouts)
+            root.addArrangedSubview(hint("↩ switch · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
+            if s.list.isEmpty {
+                root.addArrangedSubview(empty(size: rowHeight, width: listWidth - 16))
+            } else {
+                let start = max(0, s.row - 11)
+                for (index, window) in s.list.enumerated().dropFirst(start).prefix(12) {
+                    root.addArrangedSubview(row(window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale, width: listWidth - 16, height: rowHeight))
+                    if index == leadingPinnedCount(s.list, pins: s.pins) - 1 && index + 1 < s.list.count {
+                        let line = NSBox(); line.boxType = .separator
+                        line.widthAnchor.constraint(equalToConstant: listWidth - 16).isActive = true
+                        root.addArrangedSubview(line)
+                    }
+                }
+            }
         } else {
             search = nil
-            root.addArrangedSubview(strip(s))
-            if s.mode == .dropdown { for (index, window) in s.dropdown.enumerated() { root.addArrangedSubview(row(window.title.isEmpty ? window.appName : window.title, selected: index == s.row)) } }
+            let stripView = strip(s, fontSize: fontSize, scale: scale)
+            let stripWidth = stripView.fittingSize.width
+            contentWidth = s.mode == .dropdown ? max(listWidth, stripWidth) : stripWidth
+            stripView.widthAnchor.constraint(equalToConstant: contentWidth - 16).isActive = true
+            root.addArrangedSubview(stripView)
+            if s.mode == .dropdown {
+                for (index, window) in s.dropdown.enumerated() {
+                    root.addArrangedSubview(row(window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale, width: contentWidth - 16, height: rowHeight))
+                    if index == leadingPinnedCount(s.dropdown, pins: s.pins) - 1 && index + 1 < s.dropdown.count {
+                        let line = NSBox(); line.boxType = .separator
+                        line.widthAnchor.constraint(equalToConstant: contentWidth - 16).isActive = true
+                        root.addArrangedSubview(line)
+                    }
+                }
+                root.addArrangedSubview(hint("= pin · ↑↓ move · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
+            }
         }
         visualEffect.subviews.forEach { $0.removeFromSuperview() }
         visualEffect.addSubview(root)
         root.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: visualEffect.leadingAnchor), root.trailingAnchor.constraint(equalTo: visualEffect.trailingAnchor),
-            root.topAnchor.constraint(equalTo: visualEffect.topAnchor), root.bottomAnchor.constraint(equalTo: visualEffect.bottomAnchor)
+            root.leadingAnchor.constraint(equalTo: visualEffect.leadingAnchor),
+            root.trailingAnchor.constraint(equalTo: visualEffect.trailingAnchor),
+            root.topAnchor.constraint(equalTo: visualEffect.topAnchor),
+            root.bottomAnchor.constraint(equalTo: visualEffect.bottomAnchor),
+            root.widthAnchor.constraint(equalToConstant: contentWidth),
         ])
         setContentSize(root.fittingSize)
-        if let screen = NSScreen.main { setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - frame.width / 2, y: screen.visibleFrame.midY - frame.height / 2)) }
+        if wasVisible {
+            setFrameTopLeftPoint(oldTopLeft)
+        } else if let screen = NSScreen.main {
+            let area = screen.visibleFrame
+            setFrameOrigin(NSPoint(x: area.midX - frame.width / 2, y: area.midY - frame.height / 2))
+        }
         orderFrontRegardless()
-        if s.mode == .list { makeKey(); search?.becomeFirstResponder(); search?.currentEditor()?.selectedRange = NSRange(location: search?.stringValue.count ?? 0, length: 0) }
+        if s.mode == .list {
+            makeKey()
+            search?.becomeFirstResponder()
+            search?.currentEditor()?.selectedRange = NSRange(location: search?.stringValue.count ?? 0, length: 0)
+        }
     }
-
     func hide() { orderOut(nil) }
-
     private func makeSearch() -> NSTextField {
         let field = NSSearchField()
-        field.placeholderString = "Search windows"
+        field.placeholderString = "Type to filter"
         field.delegate = self
         search = field
         return field
     }
-
-    private func strip(_ s: Switcher) -> NSView {
+    private func strip(_ s: Switcher, fontSize: CGFloat, scale: CGFloat) -> NSView {
         let box = NSStackView()
         box.orientation = .vertical
         box.alignment = .centerX
         let icons = NSStackView()
-        icons.spacing = 8
+        icons.spacing = (8 * scale).rounded()
+        let size = (64 * scale).rounded()
         for (index, pid) in s.apps.enumerated() {
-            let view = NSImageView(image: NSRunningApplication(processIdentifier: pid)?.icon ?? NSImage())
-            view.imageScaling = .scaleProportionallyUpOrDown
-            let holder = NSView()
-            holder.widthAnchor.constraint(equalToConstant: 64).isActive = true
-            holder.heightAnchor.constraint(equalToConstant: 64).isActive = true
-            holder.wantsLayer = true
-            holder.layer?.cornerRadius = 12
-            holder.layer?.backgroundColor = index == s.appIndex ? NSColor.white.withAlphaComponent(0.22).cgColor : NSColor.clear.cgColor
-            holder.addSubview(view)
-            view.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([view.centerXAnchor.constraint(equalTo: holder.centerXAnchor), view.centerYAnchor.constraint(equalTo: holder.centerYAnchor), view.widthAnchor.constraint(equalToConstant: 48), view.heightAnchor.constraint(equalToConstant: 48)])
-            icons.addArrangedSubview(holder)
+            let tile = TileView(index: index, onKey: onKey)
+            tile.wantsLayer = true
+            tile.layer?.cornerRadius = size * 0.16
+            tile.layer?.backgroundColor = index == s.appIndex ? NSColor.labelColor.withAlphaComponent(0.18).cgColor : NSColor.clear.cgColor
+            let icon = NSImageView(image: NSRunningApplication(processIdentifier: pid)?.icon ?? NSImage())
+            icon.imageScaling = .scaleProportionallyUpOrDown; tile.addSubview(icon)
+            icon.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                tile.widthAnchor.constraint(equalToConstant: size), tile.heightAnchor.constraint(equalToConstant: size),
+                icon.centerXAnchor.constraint(equalTo: tile.centerXAnchor), icon.centerYAnchor.constraint(equalTo: tile.centerYAnchor),
+                icon.widthAnchor.constraint(equalToConstant: size * 0.78), icon.heightAnchor.constraint(equalToConstant: size * 0.78),
+            ])
+            icons.addArrangedSubview(tile)
         }
         box.addArrangedSubview(icons)
         let app = s.apps.indices.contains(s.appIndex) ? NSRunningApplication(processIdentifier: s.apps[s.appIndex])?.localizedName ?? "" : ""
-        box.addArrangedSubview(NSTextField(labelWithString: app))
+        let label = NSTextField(labelWithString: app)
+        label.font = .systemFont(ofSize: fontSize, weight: .medium); label.lineBreakMode = .byTruncatingMiddle; label.alignment = .center
+        label.widthAnchor.constraint(equalToConstant: max(size, icons.fittingSize.width)).isActive = true
+        box.addArrangedSubview(label)
         return box
     }
-
-    private func row(_ title: String, selected: Bool) -> NSView {
+    private func row(_ window: WindowInfo, index: Int, selected: Bool, pinned: Bool, fontSize: CGFloat, scale: CGFloat, width: CGFloat, height: CGFloat) -> NSView {
+        let row = RowView(index: index, onKey: onKey)
+        row.wantsLayer = true
+        row.layer?.cornerRadius = 8 * scale
+        row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
+        let icon = NSImageView(image: NSRunningApplication(processIdentifier: window.pid)?.icon ?? NSImage())
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        let appName = window.appName
+        let title = window.title.isEmpty || window.title == appName ? appName : window.title + "  —  " + appName
         let label = NSTextField(labelWithString: title)
-        label.alignment = .left
-        label.wantsLayer = true
-        label.layer?.cornerRadius = 7
-        label.layer?.backgroundColor = selected ? NSColor.white.withAlphaComponent(0.18).cgColor : NSColor.clear.cgColor
+        label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
+        label.lineBreakMode = .byTruncatingMiddle
+        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let pin = PinButton(pinned: pinned, selected: selected)
+        pin.onKey = { [onKey] in onKey(.pin(window.id)) }
+        row.addSubview(icon); row.addSubview(label); row.addSubview(pin)
+        for view in [icon, label, pin] { view.translatesAutoresizingMaskIntoConstraints = false }
+        NSLayoutConstraint.activate([
+            row.widthAnchor.constraint(equalToConstant: width), row.heightAnchor.constraint(equalToConstant: height),
+            icon.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 8), icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 28 * scale), icon.heightAnchor.constraint(equalToConstant: 28 * scale),
+            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 10), label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            label.trailingAnchor.constraint(equalTo: pin.leadingAnchor, constant: -8),
+            pin.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -8), pin.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            pin.widthAnchor.constraint(equalToConstant: 28 * scale), pin.heightAnchor.constraint(equalToConstant: 28 * scale),
+        ])
+        return row
+    }
+    private func hint(_ text: String, size: CGFloat, width: CGFloat) -> NSView {
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: size)
+        label.textColor = .secondaryLabelColor
+        label.widthAnchor.constraint(equalToConstant: width).isActive = true
         return label
     }
-
+    private func empty(size: CGFloat, width: CGFloat) -> NSView {
+        let label = NSTextField(labelWithString: "No matches")
+        label.font = .systemFont(ofSize: size / 1.5)
+        label.textColor = .secondaryLabelColor
+        label.alignment = .center
+        label.widthAnchor.constraint(equalToConstant: width).isActive = true
+        label.heightAnchor.constraint(equalToConstant: size).isActive = true
+        return label
+    }
+    private func leadingPinnedCount(_ windows: [WindowInfo], pins: [CGWindowID]) -> Int {
+        return windows.prefix { pins.contains($0.id) }.count
+    }
     func controlTextDidChange(_ obj: Notification) { if let field = obj.object as? NSTextField { onKey(.query(field.stringValue)) } }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         let key: Switcher.Key?
-        switch commandSelector { case #selector(moveUp): key = .up; case #selector(moveDown): key = .down; case #selector(insertNewline): key = .enter; case #selector(cancelOperation): key = .escape; default: key = nil }
+        switch commandSelector {
+        case #selector(moveUp): key = .up
+        case #selector(moveDown): key = .down
+        case #selector(insertNewline): key = .enter
+        case #selector(cancelOperation): key = .escape
+        default: key = nil
+        }
         if let key { onKey(key); return true }
         return false
+    }
+}
+@MainActor private final class PanelContentView: NSVisualEffectView {
+    var onKey: ((Switcher.Key) -> Void)?
+    var currentIndex = 0
+    var scrollAccumulator: CGFloat = 0
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .activeAlways, .inVisibleRect], owner: self))
+    }
+    override func mouseMoved(with event: NSEvent) {
+        if let row = hitTest(convert(event.locationInWindow, from: nil))?.nearestRow, row.index != currentIndex {
+            onKey?(.select(row.index))
+        }
+    }
+    override func scrollWheel(with event: NSEvent) {
+        let step: CGFloat = event.hasPreciseScrollingDeltas ? 20 : 1
+        scrollAccumulator += event.scrollingDeltaY
+        while scrollAccumulator <= -step { scrollAccumulator += step; onKey?(.select(currentIndex + 1)) }
+        while scrollAccumulator >= step { scrollAccumulator -= step; onKey?(.select(currentIndex - 1)) }
+    }
+}
+@MainActor private class RowView: NSView {
+    let index: Int
+    let onKey: (Switcher.Key) -> Void
+    init(index: Int, onKey: @escaping (Switcher.Key) -> Void) {
+        self.index = index
+        self.onKey = onKey
+        super.init(frame: .zero)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { onKey(.select(index)); onKey(.enter) }
+}
+@MainActor private final class TileView: RowView {}
+@MainActor private final class PinButton: NSImageView {
+    var onKey: (() -> Void)?
+    init(pinned: Bool, selected: Bool) {
+        super.init(frame: .zero)
+        setPinned(pinned, selected: selected)
+        imageScaling = .scaleProportionallyDown
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    func setPinned(_ pinned: Bool, selected: Bool) {
+        image = NSImage(systemSymbolName: pinned ? "pin.fill" : "pin", accessibilityDescription: nil)
+        contentTintColor = pinned ? (selected ? .white : .systemOrange) : (selected ? .white : NSColor.secondaryLabelColor.withAlphaComponent(0.5))
+    }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { onKey?() }
+}
+private extension NSView {
+    var nearestRow: RowView? {
+        var view: NSView? = self
+        while let current = view {
+            if let row = current as? RowView { return row }
+            view = current.superview
+        }
+        return nil
     }
 }
