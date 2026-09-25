@@ -21,8 +21,8 @@ Set `APP_VERSION`, `BUILD_NUMBER`, `ARCHS`, or `SIGN_IDENTITY` when producing a 
 - `AppDelegate.swift` - Creates menubar status item and menu, requests Accessibility, and starts tracking and event capture.
 - `AX.swift` - Wraps Accessibility APIs for window discovery, metadata, geometry, focus, and coordinate conversion.
 - `MRU.swift` - Defines `WindowInfo` and pure ordering, app grouping, window filtering, and fuzzy query helpers.
-- `PreferencesWindow.swift` - Renders General and About preference tabs, font-size controls, and login registration.
-- `Settings.swift` - Stores clamped font-size preference in configurable `UserDefaults`.
+- `PreferencesWindow.swift` - Renders General and About preference tabs, font/icon size controls, and login registration.
+- `Settings.swift` - Stores clamped font-size and icon-size preferences in configurable `UserDefaults`.
 - `Switcher.swift` - Pure state machine for closed/strip/dropdown/list modes; keys produce state updates or focus/close effects.
 - `SwitcherPanel.swift` - Renders `Switcher` state, handles search and pointer input, and sends keys through `onKey`.
 - `SwitcherTap.swift` - Maps CGEvent keyboard input to `Switcher.Key`, opens the switcher, and runs produced effects.
