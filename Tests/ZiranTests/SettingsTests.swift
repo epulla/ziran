@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Ziran
 
-@MainActor @Test func fontSizeDefaultAndClamp() {
+@MainActor @Test func sizesDefaultAndClamp() {
     Settings.defaults = UserDefaults(suiteName: "ZiranTests")!
     Settings.defaults.removePersistentDomain(forName: "ZiranTests")
     #expect(Settings.fontSize == 14)
@@ -12,5 +12,13 @@ import Testing
     #expect(Settings.fontSize == 28)
     Settings.fontSize = 20
     #expect(Settings.fontSize == 20)
+    #expect(Settings.iconSize == 96)
+    Settings.iconSize = 10
+    #expect(Settings.iconSize == 48)
+    Settings.iconSize = 500
+    #expect(Settings.iconSize == 160)
+    Settings.iconSize = 120
+    #expect(Settings.iconSize == 120)
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
     Settings.defaults = .standard
 }

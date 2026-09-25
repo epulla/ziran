@@ -6,6 +6,8 @@ final class PreferencesWindow: NSWindowController {
     private let tabs = NSTabViewController()
     private let slider = NSSlider()
     private let valueLabel = NSTextField(labelWithString: "")
+    private let iconSlider = NSSlider()
+    private let iconValueLabel = NSTextField(labelWithString: "")
     private let previewLabel = NSTextField(labelWithString: "Sample window title  —  Ziran")
     private let loginCheckbox = NSButton(checkboxWithTitle: "Launch at login", target: nil, action: nil)
     private var didCenter = false
@@ -43,37 +45,29 @@ final class PreferencesWindow: NSWindowController {
 
     private func generalController() -> NSViewController {
         let controller = NSViewController()
-        let title = NSTextField(labelWithString: "Font size")
-        title.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        slider.minValue = Settings.fontSizeRange.lowerBound
-        slider.maxValue = Settings.fontSizeRange.upperBound
-        slider.numberOfTickMarks = 18
-        slider.allowsTickMarkValuesOnly = true
-        slider.isContinuous = true
-        slider.target = self
-        slider.action = #selector(fontSizeChanged)
-        slider.doubleValue = Settings.fontSize
-        valueLabel.alignment = .right
-        valueLabel.widthAnchor.constraint(equalToConstant: 42).isActive = true
+        let title = sectionTitle("Font size")
+        let fontRow = sliderRow(
+            slider, value: valueLabel, range: Settings.fontSizeRange, ticks: 18, current: Settings.fontSize, action: #selector(fontSizeChanged),
+            reset: #selector(resetFontSize))
         previewLabel.font = .systemFont(ofSize: Settings.fontSize)
-        let reset = NSButton(title: "Reset", target: self, action: #selector(resetFontSize))
-        reset.bezelStyle = .rounded
-        let sliderRow = NSStackView(views: [slider, valueLabel, reset])
-        sliderRow.orientation = .horizontal
-        sliderRow.spacing = 8
-        let caption = secondaryLabel("Scales rows, icons and the panel. Applies next time the switcher opens.")
+        let caption = secondaryLabel("Scales text, rows and the panel. Applies next time the switcher opens.")
+        let iconTitle = sectionTitle("Icon size")
+        let iconRow = sliderRow(
+            iconSlider, value: iconValueLabel, range: Settings.iconSizeRange, ticks: 15, current: Settings.iconSize, action: #selector(iconSizeChanged),
+            reset: #selector(resetIconSize))
+        let iconCaption = secondaryLabel("Size of app icons in the switcher strip.")
         let separator = NSBox()
         separator.boxType = .separator
         loginCheckbox.target = self
         loginCheckbox.action = #selector(loginToggled)
-        let stack = NSStackView(views: [title, sliderRow, previewLabel, caption, separator, loginCheckbox])
+        let stack = NSStackView(views: [title, fontRow, previewLabel, caption, iconTitle, iconRow, iconCaption, separator, loginCheckbox])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
-        sliderRow.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        previewLabel.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        caption.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        separator.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        stack.setCustomSpacing(20, after: caption)
+        for view in [fontRow, previewLabel, caption, iconRow, iconCaption, separator] {
+            view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        }
         stack.translatesAutoresizingMaskIntoConstraints = false
         controller.view = NSView()
         controller.view.addSubview(stack)
@@ -84,7 +78,7 @@ final class PreferencesWindow: NSWindowController {
             stack.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 20),
             stack.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor, constant: -20),
         ])
-        updateFontSizeLabels()
+        updateSizeLabels()
         return controller
     }
 
@@ -118,6 +112,33 @@ final class PreferencesWindow: NSWindowController {
         return controller
     }
 
+    private func sliderRow(
+        _ slider: NSSlider, value: NSTextField, range: ClosedRange<Double>, ticks: Int, current: Double, action: Selector, reset: Selector
+    ) -> NSView {
+        slider.minValue = range.lowerBound
+        slider.maxValue = range.upperBound
+        slider.numberOfTickMarks = ticks
+        slider.allowsTickMarkValuesOnly = true
+        slider.isContinuous = true
+        slider.target = self
+        slider.action = action
+        slider.doubleValue = current
+        value.alignment = .right
+        value.widthAnchor.constraint(equalToConstant: 48).isActive = true
+        let button = NSButton(title: "Reset", target: self, action: reset)
+        button.bezelStyle = .rounded
+        let row = NSStackView(views: [slider, value, button])
+        row.orientation = .horizontal
+        row.spacing = 8
+        return row
+    }
+
+    private func sectionTitle(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+        return label
+    }
+
     private func secondaryLabel(_ text: String) -> NSTextField {
         let label = NSTextField(labelWithString: text)
         label.textColor = .secondaryLabelColor
@@ -128,7 +149,7 @@ final class PreferencesWindow: NSWindowController {
     @objc private func fontSizeChanged() {
         Settings.fontSize = slider.doubleValue.rounded()
         slider.doubleValue = Settings.fontSize
-        updateFontSizeLabels()
+        updateSizeLabels()
     }
 
     @objc private func resetFontSize() {
@@ -136,8 +157,20 @@ final class PreferencesWindow: NSWindowController {
         fontSizeChanged()
     }
 
-    private func updateFontSizeLabels() {
+    @objc private func iconSizeChanged() {
+        Settings.iconSize = iconSlider.doubleValue.rounded()
+        iconSlider.doubleValue = Settings.iconSize
+        updateSizeLabels()
+    }
+
+    @objc private func resetIconSize() {
+        iconSlider.doubleValue = Settings.defaultIconSize
+        iconSizeChanged()
+    }
+
+    private func updateSizeLabels() {
         valueLabel.stringValue = "\(Int(Settings.fontSize)) pt"
+        iconValueLabel.stringValue = "\(Int(Settings.iconSize)) pt"
         previewLabel.font = .systemFont(ofSize: Settings.fontSize)
     }
 

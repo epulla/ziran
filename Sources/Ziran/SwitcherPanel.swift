@@ -126,7 +126,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         box.alignment = .centerX
         let icons = NSStackView()
         icons.spacing = (8 * scale).rounded()
-        let size = (64 * scale).rounded()
+        let size = Settings.iconSize
         for (index, pid) in s.apps.enumerated() {
             let tile: NSView = s.mode == .strip ? RowView(index: index, onKey: onKey) : NSView()
             tile.wantsLayer = true
