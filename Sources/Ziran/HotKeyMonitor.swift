@@ -18,7 +18,6 @@ private func ziranHotKeyHandler(
 @MainActor
 final class HotKeyMonitor {
     private var handlerRef: EventHandlerRef?
-    private var hotKeys: [EventHotKeyRef?] = []
     private var actions: [() -> Void] = []
 
     func register(keyCode: Int, modifiers: Int, action: @escaping () -> Void) -> Bool {
@@ -32,7 +31,6 @@ final class HotKeyMonitor {
         guard RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), id, GetApplicationEventTarget(),
                                   OptionBits(kEventHotKeyExclusive), &hotKey) == noErr else { return false }
         actions.append(action)
-        hotKeys.append(hotKey)
         return true
     }
 

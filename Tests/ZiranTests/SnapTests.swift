@@ -20,14 +20,17 @@ private let portrait = CGRect(x: 0, y: 0, width: 900, height: 1200)
     (.topRight, landscape, CGRect(x: 600, y: 450, width: 600, height: 450)),
     (.bottomLeft, landscape, CGRect(x: 0, y: 0, width: 600, height: 450)),
     (.bottomRight, landscape, CGRect(x: 600, y: 0, width: 600, height: 450)),
+    (.centerThird, CGRect(x: -1000, y: 0, width: 1000, height: 800), CGRect(x: -667, y: 0, width: 334, height: 800)),
     (.firstThird, portrait, CGRect(x: 0, y: 800, width: 900, height: 400)),
     (.lastThird, portrait, CGRect(x: 0, y: 0, width: 900, height: 400)),
-    (.center, landscape, CGRect(x: 400, y: 300, width: 400, height: 300)),
-    (.center, landscape, landscape)
+    (.center, landscape, CGRect(x: 400, y: 300, width: 400, height: 300))
 ])
 func snapFrames(action: SnapAction, visible: CGRect, expected: CGRect) {
-    let current = action == .center && expected == landscape ? CGRect(x: -50, y: -50, width: 1600, height: 1000) : CGRect(x: 100, y: 100, width: 400, height: 300)
-    #expect(action.frame(visible: visible, current: current) == expected)
+    #expect(action.frame(visible: visible, current: CGRect(x: 100, y: 100, width: 400, height: 300)) == expected)
+}
+
+@Test func snapCenterClampsOversizedWindow() {
+    #expect(SnapAction.center.frame(visible: landscape, current: CGRect(x: -50, y: -50, width: 1600, height: 1000)) == landscape)
 }
 
 @Test func snapMovementAndFlip() {

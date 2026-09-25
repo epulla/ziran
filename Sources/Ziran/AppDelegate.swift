@@ -46,19 +46,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func snap(_ action: SnapAction) {
-        guard let el = AX.focusedWindow(), let axFrame = AX.frame(el), let primary = NSScreen.screens.first else { return }
-        let primaryMaxY = primary.frame.maxY; let current = AX.flip(axFrame, primaryMaxY: primaryMaxY)
-        let screens = NSScreen.screens
-        let screen = screens.max { $0.frame.intersection(current).width * $0.frame.intersection(current).height < $1.frame.intersection(current).width * $1.frame.intersection(current).height } ?? NSScreen.main
-        guard let screen else { return }
+        guard let window = AX.focusedWindow(), let axFrame = AX.frame(window), let primary = NSScreen.screens.first else { return }
+        let primaryMaxY = primary.frame.maxY
+        let current = AX.flip(axFrame, primaryMaxY: primaryMaxY)
+        let screens = NSScreen.screens.sorted { $0.frame.minX < $1.frame.minX }
+        let area = { (screen: NSScreen) in screen.frame.intersection(current).width * screen.frame.intersection(current).height }
+        guard let screen = screens.max(by: { area($0) < area($1) }) else { return }
         let new: CGRect
         if action == .nextDisplay || action == .previousDisplay {
-            guard screens.count > 1 else { return }
-            let sorted = screens.sorted { $0.frame.minX < $1.frame.minX }; let index = sorted.firstIndex(of: screen) ?? 0
-            let offset = action == .nextDisplay ? 1 : -1; let target = sorted[(index + offset + sorted.count) % sorted.count]
+            guard screens.count > 1, let index = screens.firstIndex(of: screen) else { return }
+            let target = screens[(index + (action == .nextDisplay ? 1 : -1) + screens.count) % screens.count]
             new = SnapAction.moved(current, from: screen.visibleFrame, to: target.visibleFrame)
-        } else { new = action.frame(visible: screen.visibleFrame, current: current) }
-        AX.setFrame(el, AX.flip(new, primaryMaxY: primaryMaxY))
+        } else {
+            new = action.frame(visible: screen.visibleFrame, current: current)
+        }
+        AX.setFrame(window, AX.flip(new, primaryMaxY: primaryMaxY))
     }
 
     @objc private func quit() {
