@@ -5,6 +5,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private let visualEffect = NSVisualEffectView()
     private let onKey: (Switcher.Key) -> Void
     private var search: NSTextField?
+    var layoutsMenu: (() -> NSMenu)?
 
     init(onKey: @escaping (Switcher.Key) -> Void) {
         self.onKey = onKey
@@ -35,8 +36,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             root.addArrangedSubview(field)
             let start = max(0, s.row - 11)
             for (index, window) in s.list.enumerated().dropFirst(start).prefix(12) { root.addArrangedSubview(row(window.appName + " — " + window.title, selected: index == s.row)) }
-            let layouts = NSButton(title: "Layouts", target: nil, action: nil)
-            layouts.isEnabled = false
+            let layouts = NSButton(title: "Layouts", target: self, action: #selector(showLayouts))
+            layouts.isEnabled = layoutsMenu != nil
             root.addArrangedSubview(layouts)
         } else {
             search = nil
@@ -57,6 +58,12 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     func hide() { orderOut(nil) }
+
+    @objc private func showLayouts(_ button: NSButton) {
+        guard let menu = layoutsMenu?() else { return }
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
+        onKey(.escape)
+    }
 
     private func makeSearch() -> NSTextField {
         let field = NSSearchField()

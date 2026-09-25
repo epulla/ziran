@@ -8,6 +8,7 @@ final class SwitcherTap {
     private var panel: SwitcherPanel!
     private var tap: CFMachPort?
     private var previousApp: NSRunningApplication?
+    var layoutsMenu: (() -> NSMenu)? { get { panel.layoutsMenu } set { panel.layoutsMenu = newValue } }
 
     init(tracker: WindowTracker) {
         self.tracker = tracker
