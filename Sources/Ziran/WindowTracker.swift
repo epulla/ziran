@@ -11,21 +11,23 @@ final class WindowTracker {
     func start() {
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular { observe(app.processIdentifier) }
         let center = NSWorkspace.shared.notificationCenter
-        workspaceObservers.append(center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
-            let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
-            MainActor.assumeIsolated {
-                guard let pid else { return }
-                self?.observe(pid)
-                if let el = AX.focusedWindow() { self?.touch(el) }
-            }
-        })
-        workspaceObservers.append(center.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] note in
-            let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
-            MainActor.assumeIsolated {
-                guard let pid else { return }
-                self?.removeObserver(pid)
-            }
-        })
+        workspaceObservers.append(
+            center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+                let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
+                MainActor.assumeIsolated {
+                    guard let pid else { return }
+                    self?.observe(pid)
+                    if let el = AX.focusedWindow() { self?.touch(el) }
+                }
+            })
+        workspaceObservers.append(
+            center.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+                let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
+                MainActor.assumeIsolated {
+                    guard let pid else { return }
+                    self?.removeObserver(pid)
+                }
+            })
     }
 
     func observe(_ pid: pid_t) {
@@ -60,7 +62,10 @@ final class WindowTracker {
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular && app.processIdentifier != ownPID {
             for el in AX.windows(pid: app.processIdentifier) {
                 guard let id = AX.windowID(el), onScreen.contains(id) || AX.isMinimized(el) else { continue }
-                windows.append(WindowInfo(id: id, pid: app.processIdentifier, bundleId: app.bundleIdentifier ?? "", appName: app.localizedName ?? "", title: AX.title(el), isMinimized: AX.isMinimized(el)))
+                windows.append(
+                    WindowInfo(
+                        id: id, pid: app.processIdentifier, bundleId: app.bundleIdentifier ?? "", appName: app.localizedName ?? "", title: AX.title(el),
+                        isMinimized: AX.isMinimized(el)))
                 current[id] = el
             }
         }

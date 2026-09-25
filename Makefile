@@ -4,7 +4,7 @@ BUNDLE_SCRIPT := scripts/bundle.sh
 CLT_DEV := /Library/Developer/CommandLineTools/Library/Developer
 TEST_FLAGS := $(if $(wildcard $(CLT_DEV)/Frameworks/Testing.framework),-Xswiftc -F -Xswiftc $(CLT_DEV)/Frameworks -Xlinker -rpath -Xlinker $(CLT_DEV)/Frameworks -Xlinker -rpath -Xlinker $(CLT_DEV)/usr/lib)
 
-.PHONY: build release test bundle run clean
+.PHONY: build release test bundle run clean lint format
 
 build:
 	swift build --product $(APP_NAME)
@@ -23,3 +23,9 @@ run:
 
 clean:
 	swift package clean
+
+lint:
+	swift format lint -r -s Sources Tests
+
+format:
+	swift format -i -r Sources Tests

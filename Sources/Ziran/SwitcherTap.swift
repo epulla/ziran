@@ -3,6 +3,7 @@ import CoreGraphics
 
 @MainActor
 final class SwitcherTap {
+    private static let digits: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
     var switcher = Switcher()
     private let tracker: WindowTracker
     private var panel: SwitcherPanel!
@@ -23,7 +24,11 @@ final class SwitcherTap {
             let swallow = MainActor.assumeIsolated { tap.handle(proxy, type: type, eventPointer: eventPointer) }
             return swallow ? nil : Unmanaged.passUnretained(event)
         }
-        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask, callback: callback, userInfo: Unmanaged.passUnretained(self).toOpaque()) else { return false }
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask, callback: callback,
+                userInfo: Unmanaged.passUnretained(self).toOpaque())
+        else { return false }
         self.tap = tap
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
@@ -50,6 +55,10 @@ final class SwitcherTap {
                 }
                 return true
             }
+            if switcher.mode != .closed && flags.contains(.maskCommand), let index = Self.digits.firstIndex(of: keycode) {
+                run(switcher.handle(.jump(index)))
+                return true
+            }
             guard switcher.mode == .strip || switcher.mode == .dropdown else { return false }
             let key: Switcher.Key?
             switch keycode {
@@ -57,6 +66,9 @@ final class SwitcherTap {
             case 125: key = .down
             case 36: key = .enter
             case 53: key = .escape
+            case 24 where !modifier:
+                if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
+                return true
             default: key = nil
             }
             if let key { run(switcher.handle(key)); return true }

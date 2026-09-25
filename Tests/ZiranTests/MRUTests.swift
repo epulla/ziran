@@ -6,7 +6,7 @@ import Testing
 private let mruWindows = [
     WindowInfo(id: 1, pid: 1, bundleId: "a", appName: "Alpha", title: "One", isMinimized: false),
     WindowInfo(id: 2, pid: 2, bundleId: "b", appName: "Beta", title: "Two", isMinimized: false),
-    WindowInfo(id: 3, pid: 1, bundleId: "a", appName: "Alpha", title: "Three", isMinimized: false)
+    WindowInfo(id: 3, pid: 1, bundleId: "a", appName: "Alpha", title: "Three", isMinimized: false),
 ]
 
 @Test func mruOrderingAndGroups() {
