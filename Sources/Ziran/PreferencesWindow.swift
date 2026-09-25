@@ -11,8 +11,9 @@ final class PreferencesWindow: NSWindowController {
     private var didCenter = false
 
     init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
-                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
+            styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Ziran Preferences"
         window.isReleasedWhenClosed = false
         super.init(window: window)
@@ -81,7 +82,7 @@ final class PreferencesWindow: NSWindowController {
             stack.leadingAnchor.constraint(equalTo: controller.view.leadingAnchor, constant: 16),
             stack.trailingAnchor.constraint(equalTo: controller.view.trailingAnchor, constant: -16),
             stack.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 20),
-            stack.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor, constant: -20)
+            stack.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor, constant: -20),
         ])
         updateFontSizeLabels()
         return controller
@@ -112,7 +113,7 @@ final class PreferencesWindow: NSWindowController {
             controller.view.widthAnchor.constraint(equalToConstant: 440),
             stack.centerXAnchor.constraint(equalTo: controller.view.centerXAnchor),
             stack.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 20),
-            stack.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor, constant: -20)
+            stack.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor, constant: -20),
         ])
         return controller
     }
@@ -146,8 +147,7 @@ final class PreferencesWindow: NSWindowController {
 
     @objc private func loginToggled() {
         do {
-            if loginCheckbox.state == .on { try SMAppService.mainApp.register() }
-            else { try SMAppService.mainApp.unregister() }
+            if loginCheckbox.state == .on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
             NSAlert(error: error).runModal()
             refreshLoginState()

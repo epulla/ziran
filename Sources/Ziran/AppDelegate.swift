@@ -39,7 +39,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func start() {
         let tracker = WindowTracker(); tracker.start(); let tap = SwitcherTap(tracker: tracker)
         self.tracker = tracker; switcherTap = tap
-        if !tap.start() { NSAlert(error: NSError(domain: "Ziran", code: 1, userInfo: [NSLocalizedDescriptionKey: "Ziran could not install its keyboard tap. Check Accessibility permission."])).runModal() }
+        if !tap.start() {
+            NSAlert(
+                error: NSError(
+                    domain: "Ziran", code: 1, userInfo: [NSLocalizedDescriptionKey: "Ziran could not install its keyboard tap. Check Accessibility permission."]
+                )
+            ).runModal()
+        }
     }
 
     @objc private func quit() {

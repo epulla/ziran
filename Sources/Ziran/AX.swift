@@ -15,11 +15,12 @@ enum AX {
         let app = AXUIElementCreateApplication(pid)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
-              let windows = value as? [AXUIElement] else { return [] }
+            let windows = value as? [AXUIElement]
+        else { return [] }
         return windows.filter {
             var subrole: CFTypeRef?
-            return AXUIElementCopyAttributeValue($0, kAXSubroleAttribute as CFString, &subrole) == .success &&
-                (subrole as? String) == kAXStandardWindowSubrole as String
+            return AXUIElementCopyAttributeValue($0, kAXSubroleAttribute as CFString, &subrole) == .success
+                && (subrole as? String) == kAXStandardWindowSubrole as String
         }
     }
 
@@ -39,8 +40,9 @@ enum AX {
         var position: CFTypeRef?
         var size: CFTypeRef?
         guard AXUIElementCopyAttributeValue(el, kAXPositionAttribute as CFString, &position) == .success,
-              AXUIElementCopyAttributeValue(el, kAXSizeAttribute as CFString, &size) == .success,
-              let p = position, let s = size else { return nil }
+            AXUIElementCopyAttributeValue(el, kAXSizeAttribute as CFString, &size) == .success,
+            let p = position, let s = size
+        else { return nil }
         var origin = CGPoint.zero
         var extent = CGSize.zero
         guard AXValueGetValue(p as! AXValue, .cgPoint, &origin), AXValueGetValue(s as! AXValue, .cgSize, &extent) else { return nil }

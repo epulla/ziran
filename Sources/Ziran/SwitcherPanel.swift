@@ -51,7 +51,10 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             } else {
                 let start = max(0, s.row - 11)
                 for (index, window) in s.list.enumerated().dropFirst(start).prefix(12) {
-                    root.addArrangedSubview(row(window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale, width: listWidth - 16, height: rowHeight))
+                    root.addArrangedSubview(
+                        row(
+                            window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale,
+                            width: listWidth - 16, height: rowHeight))
                     if index == leadingPinnedCount(s.list, pins: s.pins) - 1 && index + 1 < s.list.count {
                         let line = NSBox(); line.boxType = .separator
                         line.widthAnchor.constraint(equalToConstant: listWidth - 16).isActive = true
@@ -68,7 +71,10 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             root.addArrangedSubview(stripView)
             if s.mode == .dropdown {
                 for (index, window) in s.dropdown.enumerated() {
-                    root.addArrangedSubview(row(window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale, width: contentWidth - 16, height: rowHeight))
+                    root.addArrangedSubview(
+                        row(
+                            window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale,
+                            width: contentWidth - 16, height: rowHeight))
                     if index == leadingPinnedCount(s.dropdown, pins: s.pins) - 1 && index + 1 < s.dropdown.count {
                         let line = NSBox(); line.boxType = .separator
                         line.widthAnchor.constraint(equalToConstant: contentWidth - 16).isActive = true
@@ -146,7 +152,9 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return box
     }
 
-    private func row(_ window: WindowInfo, index: Int, selected: Bool, pinned: Bool, fontSize: CGFloat, scale: CGFloat, width: CGFloat, height: CGFloat) -> NSView {
+    private func row(_ window: WindowInfo, index: Int, selected: Bool, pinned: Bool, fontSize: CGFloat, scale: CGFloat, width: CGFloat, height: CGFloat)
+        -> NSView
+    {
         let row = RowView(index: index, onKey: onKey)
         row.wantsLayer = true
         row.layer?.cornerRadius = 8 * scale
