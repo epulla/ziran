@@ -38,3 +38,40 @@ func switcherSequences(keys: [Switcher.Key], expected: Switcher.Effect, mode: Sw
     #expect(switcher.dropdown.allSatisfy { !$0.isMinimized })
     #expect(switcher.list.contains(fixture[3]))
 }
+
+@Test func switcherPins() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    #expect(switcher.handle(.pin(5)) == .update)
+    #expect(switcher.list.first == fixture[4])
+    #expect(switcher.pinned == [fixture[4]])
+    #expect(switcher.handle(.pin(5)) == .update)
+    #expect(switcher.list == fixture)
+    _ = switcher.handle(.pin(5))
+    _ = switcher.handle(.escape)
+    _ = switcher.open(fixture)
+    #expect(switcher.list.first == fixture[4])
+    _ = switcher.handle(.up)
+    _ = switcher.handle(.query("gam"))
+    #expect(switcher.list == [fixture[4]])
+    _ = switcher.handle(.query("alp"))
+    #expect(switcher.list == [fixture[0], fixture[1]])
+}
+
+@Test(arguments: [
+    ([Switcher.Key.select(2)], Switcher.Effect.update, Switcher.Mode.strip, 0, 2),
+    ([Switcher.Key.down, .select(0)], .update, .dropdown, 0, 1),
+    ([Switcher.Key.up, .select(3)], .update, .list, 3, 1),
+    ([Switcher.Key.select(99)], .none, .strip, 0, 1),
+    ([Switcher.Key.up, .select(-1)], .none, .list, 0, 1)
+])
+func switcherSelect(keys: [Switcher.Key], effect: Switcher.Effect, mode: Switcher.Mode, row: Int, appIndex: Int) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    var actual = Switcher.Effect.update
+    for key in keys { actual = switcher.handle(key) }
+    #expect(actual == effect)
+    #expect(switcher.mode == mode)
+    #expect(switcher.row == row)
+    #expect(switcher.appIndex == appIndex)
+}
