@@ -155,6 +155,11 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         label.font = .systemFont(ofSize: fontSize, weight: .medium); label.lineBreakMode = .byTruncatingMiddle; label.alignment = .center
         label.widthAnchor.constraint(equalToConstant: max(size, icons.fittingSize.width)).isActive = true
         box.addArrangedSubview(label)
+        if s.mode == .strip {
+            let stripHint = hint("↑ search   ↓ windows", size: 11 * scale)
+            stripHint.setContentCompressionResistancePriority(.required, for: .horizontal)
+            box.addArrangedSubview(stripHint)
+        }
         return box
     }
 
@@ -207,11 +212,13 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return label
     }
 
-    private func hint(_ text: String, size: CGFloat, width: CGFloat) -> NSView {
+    private func hint(_ text: String, size: CGFloat, width: CGFloat? = nil) -> NSView {
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: size)
         label.textColor = .secondaryLabelColor
-        label.widthAnchor.constraint(equalToConstant: width).isActive = true
+        if let width {
+            label.widthAnchor.constraint(equalToConstant: width).isActive = true
+        }
         return label
     }
 
