@@ -51,7 +51,8 @@ enum AX {
         guard let pid = pid(of: el) else { return }
         let app = AXUIElementCreateApplication(pid)
         var enhanced: CFTypeRef?
-        let readable = AXUIElementCopyAttributeValue(app, "AXEnhancedUserInterface" as CFString, &enhanced) == .success
+        AXUIElementCopyAttributeValue(app, "AXEnhancedUserInterface" as CFString, &enhanced)
+        // Chrome/Electron animate resizes and drop position writes while enhanced UI is on.
         let wasEnhanced = enhanced as? Bool ?? false
         if wasEnhanced { AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, false as CFTypeRef) }
         var size = rect.size
@@ -64,7 +65,6 @@ enum AX {
             AXUIElementSetAttributeValue(el, kAXSizeAttribute as CFString, sizeValue)
         }
         if wasEnhanced { AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, true as CFTypeRef) }
-        _ = readable
     }
 
     static func focusedWindow() -> AXUIElement? {

@@ -46,8 +46,7 @@ struct Switcher {
             case .enter:
                 guard let selection else { return close() }
                 return finish(.focus(selection))
-            case .tab, .shiftTab, .optionUp: return .none
-            case .escape: return close()
+            case .tab, .shiftTab, .optionUp, .escape: return .none
             }
         }
         switch key {
@@ -57,22 +56,16 @@ struct Switcher {
             row = 0
             return .update
         case .down:
-            if mode == .strip { mode = .dropdown; row = 0 }
-            else if mode == .dropdown { row = min(row + 1, max(0, dropdown.count - 1)) }
-            else if mode == .list { row = min(row + 1, max(0, list.count - 1)) }
+            if mode == .strip { mode = .dropdown; row = 0 } else { row = min(row + 1, max(0, dropdown.count - 1)) }
             return .update
         case .up:
-            if mode == .strip { mode = .list; row = 0; query = "" }
-            else if mode == .dropdown { if row == 0 { mode = .list; row = 0 } else { row -= 1 } }
-            else if mode == .list { row = max(0, row - 1) }
+            if mode == .dropdown && row > 0 { row -= 1 } else { mode = .list; row = 0; query = "" }
             return .update
-        case .query: return .none
-        case .escape: return close()
+        case .query, .escape: return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
             guard let selection else { return close() }
-            let result = Effect.focus(selection)
-            return finish(result)
+            return finish(.focus(selection))
         }
     }
 

@@ -3,9 +3,9 @@ import ApplicationServices
 
 @MainActor
 final class WindowTracker {
-    var lastFocus: [CGWindowID: Date] = [:]
-    var observers: [pid_t: AXObserver] = [:]
-    var elements: [CGWindowID: AXUIElement] = [:]
+    private var lastFocus: [CGWindowID: Date] = [:]
+    private var observers: [pid_t: AXObserver] = [:]
+    private var elements: [CGWindowID: AXUIElement] = [:]
     private var workspaceObservers: [NSObjectProtocol] = []
 
     func start() {

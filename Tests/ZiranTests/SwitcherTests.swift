@@ -11,6 +11,7 @@ private let fixture = [
 
 @Test(arguments: [
     ([Switcher.Key.optionUp], Switcher.Effect.focus(fixture[2]), Switcher.Mode.closed),
+    ([.tab, .optionUp], .focus(fixture[4]), .closed),
     ([.tab, .tab, .optionUp], .focus(fixture[0]), .closed),
     ([.tab, .tab, .tab, .optionUp], .focus(fixture[2]), .closed),
     ([.shiftTab, .optionUp], .focus(fixture[0]), .closed),
