@@ -11,9 +11,8 @@ Idea space for window layouts:
 
 Open questions: which arrangements, keyboard vs switcher UI, per-app rules.
 
-## Deferred from AltTab port
+## Deferred
 
-- Number keys 1–9/0 jump
 - Drag to reorder pins
 - Persisting pins across restarts
 - Cmd+Tab takeover

@@ -101,8 +101,7 @@ final class PreferencesWindow: NSWindowController {
         link.bezelStyle = .inline
         link.alignment = .left
         link.contentTintColor = .linkColor
-        let attribution = secondaryLabel("UI based on AltTab by Alex Le (MIT)")
-        let stack = NSStackView(views: [icon, name, version, tagline, link, attribution])
+        let stack = NSStackView(views: [icon, name, version, tagline, link])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 6
