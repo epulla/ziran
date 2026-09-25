@@ -32,7 +32,7 @@ remove and re-add Ziran in Accessibility settings.
 | Scroll | Move selection |
 | Pin icon | Pin item |
 
-Pins last until Ziran quits and sort first.
+Pins last until Ziran quits and sort first in the dropdown and list.
 
 ## Preferences
 
