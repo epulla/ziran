@@ -44,7 +44,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             let field = search ?? makeSearch(height: (32 * scale).rounded(), width: listWidth - 16)
             field.font = .systemFont(ofSize: fontSize); field.stringValue = s.query
             root.addArrangedSubview(field)
-            root.addArrangedSubview(hint("↩ switch · ⌘1-9 jump · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
+            root.addArrangedSubview(hint("↩ switch · ⌘1-9 jump · ⌘W close window · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
             if s.list.isEmpty {
                 root.addArrangedSubview(empty(size: rowHeight, width: listWidth - 16))
             } else {
@@ -80,7 +80,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                         root.addArrangedSubview(line)
                     }
                 }
-                root.addArrangedSubview(hint("= pin · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
+                root.addArrangedSubview(hint("= pin · W close window · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
             }
         }
         visualEffect.subviews.forEach { $0.removeFromSuperview() }
@@ -126,6 +126,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         box.alignment = .centerX
         let icons = NSStackView()
         icons.spacing = (8 * scale).rounded()
+        // Without this the stack can stretch to the dropdown width on re-render and pin the icon left.
+        icons.setHuggingPriority(.required, for: .horizontal)
         let size = Settings.iconSize
         for (index, pid) in s.apps.enumerated() {
             let tile: NSView = s.mode == .strip ? RowView(index: index, onKey: onKey) : NSView()
@@ -143,8 +145,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             if s.mode == .strip, let badge = badge(index, size: 11 * scale, selected: false) {
                 tile.addSubview(badge)
                 NSLayoutConstraint.activate([
-                    badge.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: -3),
-                    badge.bottomAnchor.constraint(equalTo: tile.bottomAnchor, constant: -2),
+                    badge.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: -(size * 0.08).rounded()),
+                    badge.bottomAnchor.constraint(equalTo: tile.bottomAnchor, constant: -(size * 0.08).rounded()),
                 ])
             }
             icons.addArrangedSubview(tile)
@@ -156,7 +158,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         label.widthAnchor.constraint(equalToConstant: max(size, icons.fittingSize.width)).isActive = true
         box.addArrangedSubview(label)
         if s.mode == .strip {
-            let stripHint = hint("↑ search   ↓ windows", size: 11 * scale)
+            let stripHint = hint("↑ search   ↓ windows   W close all   ⇧W quit", size: 11 * scale)
             stripHint.setContentCompressionResistancePriority(.required, for: .horizontal)
             box.addArrangedSubview(stripHint)
         }

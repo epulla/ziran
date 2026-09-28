@@ -1,3 +1,4 @@
+import Darwin
 import Testing
 @testable import Ziran
 
@@ -106,4 +107,140 @@ func switcherSelect(keys: [Switcher.Key], effect: Switcher.Effect, mode: Switche
     #expect(switcher.mode == mode)
     #expect(switcher.row == row)
     #expect(switcher.appIndex == appIndex)
+}
+
+@Test(arguments: [
+    (pid_t(1), Switcher.Effect.update, Switcher.Mode.dropdown, Switcher.Effect.focus(fixture[1])),
+    (2, .update, .dropdown, .focus(fixture[2])),
+    (9, .close, .closed, .none),
+])
+func switcherOpenApp(pid: pid_t, opened: Switcher.Effect, mode: Switcher.Mode, released: Switcher.Effect) {
+    var switcher = Switcher()
+    #expect(switcher.open(fixture, app: pid) == opened)
+    #expect(switcher.mode == mode)
+    #expect(switcher.handle(.optionUp) == released)
+}
+
+@Test func switcherOpenAppSearchesOnlyThatApp() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    _ = switcher.handle(.up)
+    _ = switcher.handle(.up)
+    #expect(switcher.mode == .list)
+    #expect(switcher.list == [fixture[0], fixture[1]])
+}
+
+@Test func switcherOpenAppSkipsCurrentWindowWhenPinned() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    _ = switcher.handle(.pin(2))
+    _ = switcher.handle(.escape)
+    _ = switcher.open(fixture, app: 1)
+    #expect(switcher.handle(.optionUp) == .focus(fixture[1]))
+}
+
+@Test(arguments: [
+    ([Switcher.Key.nextWindow], fixture[0]),
+    ([.nextWindow, .nextWindow], fixture[1]),
+    ([.previousWindow, .previousWindow], fixture[1]),
+    ([.down, .nextWindow], fixture[0]),
+])
+func switcherCyclesAppWindows(keys: [Switcher.Key], expected: WindowInfo) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    for key in keys { _ = switcher.handle(key) }
+    #expect(switcher.handle(.optionUp) == .focus(expected))
+}
+
+@Test(arguments: [
+    (pid_t?(1), [Switcher.Key.closeWindow], Switcher.Effect.closeWindow(fixture[1]), Switcher.Effect.update, Switcher.Mode.dropdown),
+    (1, [.pin(2), .closeWindow], .closeWindow(fixture[1]), .update, .dropdown),
+    (nil, [.down, .closeWindow], .closeWindow(fixture[2]), .close, .closed),
+    (nil, [.up, .down, .closeWindow], .closeWindow(fixture[1]), .update, .list),
+])
+func switcherClosesWindow(app: pid_t?, keys: [Switcher.Key], requested: Switcher.Effect, removed: Switcher.Effect, mode: Switcher.Mode) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: app)
+    var effect = Switcher.Effect.update
+    for key in keys { effect = switcher.handle(key) }
+    #expect(effect == requested)
+    if case .closeWindow(let window) = requested {
+        #expect(switcher.windows.contains(window))
+        if keys.contains(.pin(window.id)) { #expect(switcher.pins.contains(window.id)) }
+        #expect(switcher.handle(.windowClosed(window.id)) == removed)
+        #expect(!switcher.windows.contains(window))
+    }
+    #expect(switcher.mode == mode)
+    #expect(switcher.pins.isEmpty)
+}
+
+@Test func switcherRetainsWindowWithoutClosureAndIgnoresLateNotification() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    #expect(switcher.handle(.closeWindow) == .closeWindow(fixture[1]))
+    #expect(switcher.dropdown == [fixture[0], fixture[1]])
+    #expect(switcher.handle(.windowClosed(999)) == .none)
+    #expect(switcher.handle(.escape) == .close)
+    #expect(switcher.handle(.windowClosed(fixture[1].id)) == .none)
+}
+
+@Test func switcherClosesAfterLastWindowDisappears() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    #expect(switcher.handle(.windowClosed(fixture[1].id)) == .update)
+    #expect(switcher.handle(.closeWindow) == .closeWindow(fixture[0]))
+    #expect(switcher.handle(.windowClosed(fixture[0].id)) == .close)
+    #expect(switcher.mode == .closed)
+}
+
+@Test func switcherQuitsSelectedAppFromStripAfterItExits() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    _ = switcher.handle(.pin(3))
+    #expect(switcher.handle(.quitApp) == .quitApp(2))
+    #expect(switcher.apps == [1, 2, 3])
+    #expect(switcher.handle(.appQuit(9)) == .none)
+    #expect(switcher.handle(.appQuit(2)) == .update)
+    #expect(switcher.apps == [1, 3])
+    #expect(!switcher.windows.contains { $0.pid == 2 })
+    #expect(switcher.pins.isEmpty)
+    #expect(switcher.mode == .strip)
+    #expect(switcher.selection == fixture[4])
+    #expect(switcher.handle(.appQuit(3)) == .update)
+    #expect(switcher.selection == fixture[0])
+    #expect(switcher.handle(.appQuit(1)) == .close)
+    #expect(switcher.mode == .closed)
+    #expect(switcher.handle(.appQuit(1)) == .none)
+}
+
+@Test func switcherClosesAllAppWindowsFromStripAsTheyDisappear() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    _ = switcher.handle(.pin(3))
+    #expect(switcher.handle(.closeWindow) == .closeWindows([fixture[2], fixture[3]]))
+    #expect(switcher.apps == [1, 2, 3])
+    #expect(switcher.handle(.windowClosed(999)) == .none)
+    #expect(switcher.handle(.windowClosed(3)) == .update)
+    #expect(switcher.apps == [1, 3])
+    #expect(switcher.pins.isEmpty)
+    #expect(switcher.mode == .strip)
+    #expect(switcher.selection == fixture[4])
+    #expect(switcher.handle(.windowClosed(4)) == .update)
+    #expect(switcher.selection == fixture[4])
+    #expect(switcher.handle(.closeWindow) == .closeWindows([fixture[4]]))
+    #expect(switcher.handle(.windowClosed(5)) == .update)
+    #expect(switcher.selection == fixture[0])
+    #expect(switcher.handle(.windowClosed(1)) == .update)
+    #expect(switcher.handle(.windowClosed(2)) == .close)
+    #expect(switcher.mode == .closed)
+    #expect(switcher.handle(.windowClosed(2)) == .none)
+}
+
+@Test(arguments: [pid_t?(1), nil])
+func switcherQuitAppOnlyWorksInStrip(app: pid_t?) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: app)
+    if app == nil { _ = switcher.handle(.up) }
+    #expect(switcher.handle(.quitApp) == .none)
+    #expect(switcher.windows.count == (app == nil ? fixture.count : 2))
 }

@@ -3,8 +3,11 @@ import CoreGraphics
 
 struct Switcher {
     enum Mode: Equatable { case closed, strip, dropdown, list }
-    enum Key: Equatable { case tab, shiftTab, up, down, enter, escape, optionUp, query(String), select(Int), pin(CGWindowID), jump(Int) }
-    enum Effect: Equatable { case none, update, focus(WindowInfo), close }
+    enum Key: Equatable {
+        case tab, shiftTab, nextWindow, previousWindow, up, down, enter, escape, optionUp, closeWindow, quitApp, windowClosed(CGWindowID), appQuit(pid_t),
+            query(String), select(Int), pin(CGWindowID), jump(Int)
+    }
+    enum Effect: Equatable { case none, update, focus(WindowInfo), close, closeWindow(WindowInfo), closeWindows([WindowInfo]), quitApp(pid_t) }
 
     private(set) var mode: Mode = .closed
     private(set) var appIndex = 0
@@ -29,11 +32,12 @@ struct Switcher {
         }
     }
 
-    mutating func open(_ ordered: [WindowInfo]) -> Effect {
-        windows = ordered
-        mode = .strip
-        appIndex = apps.count > 1 ? 1 : 0
-        row = 0
+    mutating func open(_ ordered: [WindowInfo], app pid: pid_t? = nil) -> Effect {
+        windows = pid.map { MRU.windows(of: $0, in: ordered) } ?? ordered
+        mode = pid == nil ? .strip : .dropdown
+        appIndex = pid == nil && apps.count > 1 ? 1 : 0
+        // Pins sort first, so pick the first listed window that isn't the current one rather than row 1.
+        row = pid == nil ? 0 : dropdown.firstIndex { $0 != windows.first } ?? 0
         query = ""
         return apps.isEmpty ? close() : .update
     }
@@ -66,6 +70,46 @@ struct Switcher {
             }
             return .update
         }
+        if key == .closeWindow {
+            if mode == .strip {
+                guard apps.indices.contains(appIndex) else { return .none }
+                let pid = apps[appIndex]
+                return .closeWindows(windows.filter { $0.pid == pid })
+            }
+            guard let window = selection else { return .none }
+            return .closeWindow(window)
+        }
+        if key == .quitApp {
+            guard mode == .strip, apps.indices.contains(appIndex) else { return .none }
+            return .quitApp(apps[appIndex])
+        }
+        if case .appQuit(let pid) = key {
+            guard mode == .strip, apps.contains(pid) else { return .none }
+            windows.removeAll { $0.pid == pid }
+            pins.removeAll { id in !windows.contains { $0.id == id } }
+            guard !apps.isEmpty else { return close() }
+            appIndex = min(appIndex, apps.count - 1)
+            row = 0
+            return .update
+        }
+        if case .windowClosed(let id) = key {
+            guard windows.contains(where: { $0.id == id }) else { return .none }
+            let app = apps.indices.contains(appIndex) ? apps[appIndex] : nil
+            windows.removeAll { $0.id == id }
+            pins.removeAll { $0 == id }
+            if mode == .strip {
+                guard !apps.isEmpty else { return close() }
+                // When the selected app's last window closes, keep the slot so the next app takes its place.
+                appIndex = apps.firstIndex { $0 == app } ?? min(appIndex, apps.count - 1)
+                return .update
+            }
+            // Removing a window can reorder or drop apps, so re-find the selected app.
+            appIndex = apps.firstIndex { $0 == app } ?? 0
+            let remaining = mode == .list ? list.count : (apps.contains { $0 == app } ? dropdown.count : 0)
+            guard remaining > 0 else { return close() }
+            row = min(row, remaining - 1)
+            return .update
+        }
         if key == .escape { return close() }
         if mode == .list {
             switch key {
@@ -75,7 +119,8 @@ struct Switcher {
             case .enter:
                 guard let selection else { return close() }
                 return finish(.focus(selection))
-            case .tab, .shiftTab, .optionUp, .escape, .select, .pin, .jump: return .none
+            case .tab, .shiftTab, .nextWindow, .previousWindow, .optionUp, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump:
+                return .none
             }
         }
         switch key {
@@ -84,13 +129,21 @@ struct Switcher {
             appIndex = (appIndex + (key == .tab ? 1 : apps.count - 1)) % apps.count
             row = 0
             return .update
+        case .nextWindow, .previousWindow:
+            guard !dropdown.isEmpty else { return .none }
+            if mode == .strip {
+                mode = .dropdown; row = 0
+            } else {
+                row = (row + (key == .nextWindow ? 1 : dropdown.count - 1)) % dropdown.count
+            }
+            return .update
         case .down:
             if mode == .strip { mode = .dropdown; row = 0 } else { row = min(row + 1, max(0, dropdown.count - 1)) }
             return .update
         case .up:
             if mode == .dropdown && row > 0 { row -= 1 } else { mode = .list; row = 0; query = "" }
             return .update
-        case .query, .escape, .select, .pin, .jump: return .none
+        case .query, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump: return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
             guard let selection else { return close() }

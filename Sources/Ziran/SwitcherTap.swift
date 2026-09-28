@@ -9,6 +9,10 @@ final class SwitcherTap {
     private var panel: SwitcherPanel!
     private var tap: CFMachPort?
     private var previousApp: NSRunningApplication?
+    private var pendingClose: [WindowInfo] = []
+    private var pendingQuit: pid_t?
+    private var closePoll: Timer?
+    private var closeChecksRemaining = 0
 
     init(tracker: WindowTracker) {
         self.tracker = tracker
@@ -46,9 +50,23 @@ final class SwitcherTap {
             let keycode = event.getIntegerValueField(.keyboardEventKeycode)
             let alternate = flags.contains(.maskAlternate)
             let modifier = flags.contains(.maskCommand) || flags.contains(.maskControl)
+            // 50 is ANSI grave; ISO keyboards report the same key as 10.
+            if (keycode == 50 || keycode == 10) && alternate && !modifier && switcher.mode != .list {
+                if switcher.mode == .closed {
+                    previousApp = NSWorkspace.shared.frontmostApplication
+                    if let pid = previousApp?.processIdentifier {
+                        if let focused = AX.focusedWindow() { tracker.touch(focused) }
+                        run(switcher.open(tracker.snapshot(), app: pid))
+                    }
+                } else {
+                    run(switcher.handle(flags.contains(.maskShift) ? .previousWindow : .nextWindow))
+                }
+                return true
+            }
             if keycode == 48 && alternate && !modifier {
                 if switcher.mode == .closed {
                     previousApp = NSWorkspace.shared.frontmostApplication
+                    if let focused = AX.focusedWindow() { tracker.touch(focused) }
                     run(switcher.open(tracker.snapshot()))
                 } else if switcher.mode == .strip || switcher.mode == .dropdown {
                     run(switcher.handle(flags.contains(.maskShift) ? .shiftTab : .tab))
@@ -59,6 +77,11 @@ final class SwitcherTap {
                 let index = Self.digits.firstIndex(of: keycode)
             {
                 run(switcher.handle(.jump(index)))
+                return true
+            }
+            // Plain W must stay typeable in the search field, so the list uses ⌘W.
+            if keycode == 13 && switcher.mode != .closed && (switcher.mode == .list ? flags.contains(.maskCommand) : alternate && !modifier) {
+                run(switcher.handle(switcher.mode != .list && flags.contains(.maskShift) ? .quitApp : .closeWindow))
                 return true
             }
             guard switcher.mode == .strip || switcher.mode == .dropdown else { return false }
@@ -85,13 +108,90 @@ final class SwitcherTap {
         switch effect {
         case .update: panel.show(switcher)
         case .focus(let window):
+            stopClosePoll()
             panel.hide()
-            if let element = tracker.element(window.id) { AX.focus(element) } else { NSRunningApplication(processIdentifier: window.pid)?.activate() }
+            if let element = tracker.element(window.id) {
+                AX.focus(element)
+                tracker.touch(element)
+            } else {
+                NSRunningApplication(processIdentifier: window.pid)?.activate()
+            }
+        case .closeWindow(let window): close([window], checks: 10)
+        case .closeWindows(let windows): close(windows, checks: 20)
+        case .quitApp(let pid):
+            guard closePoll == nil else { break }
+            guard let app = NSRunningApplication(processIdentifier: pid), app.terminate() else {
+                dismissForCloseFailure(pid)
+                break
+            }
+            pendingQuit = pid
+            // Apps like Chrome can take a couple of seconds to exit; a save prompt keeps them alive until we give up.
+            startClosePoll(checks: 30) { [weak self] in self?.checkQuit(app) }
         case .close:
+            stopClosePoll()
             let wasKey = panel.isKeyWindow
             panel.hide()
             if wasKey { previousApp?.activate(options: []) }
         case .none: break
         }
+    }
+
+    private func startClosePoll(checks: Int, _ check: @escaping @MainActor () -> Void) {
+        closeChecksRemaining = checks
+        closePoll = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            MainActor.assumeIsolated { check() }
+        }
+    }
+
+    private func close(_ windows: [WindowInfo], checks: Int) {
+        guard closePoll == nil, let pid = windows.first?.pid else { return }
+        var pressed: [WindowInfo] = []
+        for window in windows {
+            if let element = tracker.element(window.id), AX.close(element) { pressed.append(window) }
+        }
+        guard pressed.count == windows.count else {
+            dismissForCloseFailure(pid)
+            return
+        }
+        pendingClose = pressed
+        startClosePoll(checks: checks) { [weak self] in self?.checkClose() }
+    }
+
+    private func checkClose() {
+        guard let pid = pendingClose.first?.pid else { return }
+        let closed = pendingClose.filter { AX.windowExists($0.id, pid: $0.pid) == false }
+        pendingClose.removeAll { closed.contains($0) }
+        let emptied = pendingClose.isEmpty
+        if emptied { stopClosePoll() }
+        for window in closed { run(switcher.handle(.windowClosed(window.id))) }
+        if !emptied && closePoll != nil { giveUpIfExhausted(pid) }
+    }
+
+    private func checkQuit(_ app: NSRunningApplication) {
+        guard pendingQuit == app.processIdentifier else { return }
+        if app.isTerminated {
+            stopClosePoll()
+            run(switcher.handle(.appQuit(app.processIdentifier)))
+        } else {
+            giveUpIfExhausted(app.processIdentifier)
+        }
+    }
+
+    private func giveUpIfExhausted(_ pid: pid_t) {
+        closeChecksRemaining -= 1
+        if closeChecksRemaining == 0 { dismissForCloseFailure(pid) }
+    }
+
+    private func dismissForCloseFailure(_ pid: pid_t) {
+        stopClosePoll()
+        run(switcher.handle(.escape))
+        NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+    }
+
+    private func stopClosePoll() {
+        closePoll?.invalidate()
+        closePoll = nil
+        pendingClose = []
+        pendingQuit = nil
     }
 }
