@@ -53,7 +53,10 @@ final class SwitcherTap {
             if (keycode == 50 || keycode == 10) && alternate && !modifier && switcher.mode != .list {
                 if switcher.mode == .closed {
                     previousApp = NSWorkspace.shared.frontmostApplication
-                    if let pid = previousApp?.processIdentifier { run(switcher.open(tracker.snapshot(), app: pid)) }
+                    if let pid = previousApp?.processIdentifier {
+                        if let focused = AX.focusedWindow() { tracker.touch(focused) }
+                        run(switcher.open(tracker.snapshot(), app: pid))
+                    }
                 } else {
                     run(switcher.handle(flags.contains(.maskShift) ? .previousWindow : .nextWindow))
                 }
@@ -62,6 +65,7 @@ final class SwitcherTap {
             if keycode == 48 && alternate && !modifier {
                 if switcher.mode == .closed {
                     previousApp = NSWorkspace.shared.frontmostApplication
+                    if let focused = AX.focusedWindow() { tracker.touch(focused) }
                     run(switcher.open(tracker.snapshot()))
                 } else if switcher.mode == .strip || switcher.mode == .dropdown {
                     run(switcher.handle(flags.contains(.maskShift) ? .shiftTab : .tab))
@@ -105,7 +109,12 @@ final class SwitcherTap {
         case .focus(let window):
             stopClosePoll()
             panel.hide()
-            if let element = tracker.element(window.id) { AX.focus(element) } else { NSRunningApplication(processIdentifier: window.pid)?.activate() }
+            if let element = tracker.element(window.id) {
+                AX.focus(element)
+                tracker.touch(element)
+            } else {
+                NSRunningApplication(processIdentifier: window.pid)?.activate()
+            }
         case .closeWindow(let window):
             guard pendingClose == nil else { break }
             guard let element = tracker.element(window.id), AX.close(element) else {
