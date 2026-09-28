@@ -84,10 +84,6 @@ final class SwitcherTap {
                 run(switcher.handle(.closeWindow))
                 return true
             }
-            if keycode == 12 && (switcher.mode == .strip || switcher.mode == .dropdown) && alternate && !modifier {
-                run(switcher.handle(.quitApp))
-                return true
-            }
             guard switcher.mode == .strip || switcher.mode == .dropdown else { return false }
             let key: Switcher.Key?
             switch keycode {
@@ -95,6 +91,7 @@ final class SwitcherTap {
             case 125: key = .down
             case 36: key = .enter
             case 53: key = .escape
+            case 12 where !modifier: key = .quitApp
             case 24 where !modifier:
                 if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
                 return true
