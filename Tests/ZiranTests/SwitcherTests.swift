@@ -155,7 +155,6 @@ func switcherCyclesAppWindows(keys: [Switcher.Key], expected: WindowInfo) {
 @Test(arguments: [
     (pid_t?(1), [Switcher.Key.closeWindow], Switcher.Effect.closeWindow(fixture[1]), Switcher.Effect.update, Switcher.Mode.dropdown),
     (1, [.pin(2), .closeWindow], .closeWindow(fixture[1]), .update, .dropdown),
-    (nil, [.closeWindow], .none, .none, .strip),
     (nil, [.down, .closeWindow], .closeWindow(fixture[2]), .close, .closed),
     (nil, [.up, .down, .closeWindow], .closeWindow(fixture[1]), .update, .list),
 ])
@@ -192,4 +191,24 @@ func switcherClosesWindow(app: pid_t?, keys: [Switcher.Key], requested: Switcher
     #expect(switcher.handle(.closeWindow) == .closeWindow(fixture[0]))
     #expect(switcher.handle(.windowClosed(fixture[0].id)) == .close)
     #expect(switcher.mode == .closed)
+}
+
+@Test func switcherQuitsSelectedAppFromStripAfterItExits() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    _ = switcher.handle(.pin(3))
+    #expect(switcher.handle(.closeWindow) == .quitApp(2))
+    #expect(switcher.apps == [1, 2, 3])
+    #expect(switcher.handle(.appQuit(9)) == .none)
+    #expect(switcher.handle(.appQuit(2)) == .update)
+    #expect(switcher.apps == [1, 3])
+    #expect(!switcher.windows.contains { $0.pid == 2 })
+    #expect(switcher.pins.isEmpty)
+    #expect(switcher.mode == .strip)
+    #expect(switcher.selection == fixture[4])
+    #expect(switcher.handle(.appQuit(3)) == .update)
+    #expect(switcher.selection == fixture[0])
+    #expect(switcher.handle(.appQuit(1)) == .close)
+    #expect(switcher.mode == .closed)
+    #expect(switcher.handle(.appQuit(1)) == .none)
 }

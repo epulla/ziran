@@ -30,6 +30,7 @@ remove and re-add Ziran in Accessibility settings.
 | Esc | Close switcher |
 | = | Pin or unpin selected window in strip or dropdown |
 | W (hold ⌥) in dropdown; ⌘W in list/search | Close selected window |
+| W (hold ⌥) in strip | Quit selected app |
 | 1–9 (hold ⌥) in strip/dropdown; ⌘1–9 in list/search | Jump straight to Nth item |
 | Hover | Select item |
 | Click | Switch to item |

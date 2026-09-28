@@ -10,6 +10,7 @@ final class SwitcherTap {
     private var tap: CFMachPort?
     private var previousApp: NSRunningApplication?
     private var pendingClose: CGWindowID?
+    private var pendingQuit: pid_t?
     private var closePoll: Timer?
     private var closeChecksRemaining = 0
 
@@ -116,16 +117,22 @@ final class SwitcherTap {
                 NSRunningApplication(processIdentifier: window.pid)?.activate()
             }
         case .closeWindow(let window):
-            guard pendingClose == nil else { break }
+            guard closePoll == nil else { break }
             guard let element = tracker.element(window.id), AX.close(element) else {
-                dismissForCloseFailure(window)
+                dismissForCloseFailure(window.pid)
                 break
             }
             pendingClose = window.id
-            closeChecksRemaining = 10
-            closePoll = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-                MainActor.assumeIsolated { self?.checkClose(window) }
+            startClosePoll(checks: 10) { [weak self] in self?.checkClose(window) }
+        case .quitApp(let pid):
+            guard closePoll == nil else { break }
+            guard let app = NSRunningApplication(processIdentifier: pid), app.terminate() else {
+                dismissForCloseFailure(pid)
+                break
             }
+            pendingQuit = pid
+            // Apps like Chrome can take a couple of seconds to exit; a save prompt keeps them alive until we give up.
+            startClosePoll(checks: 30) { [weak self] in self?.checkQuit(app) }
         case .close:
             stopClosePoll()
             let wasKey = panel.isKeyWindow
@@ -135,26 +142,48 @@ final class SwitcherTap {
         }
     }
 
+    private func startClosePoll(checks: Int, _ check: @escaping @MainActor () -> Void) {
+        closeChecksRemaining = checks
+        closePoll = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            MainActor.assumeIsolated { check() }
+        }
+    }
+
     private func checkClose(_ window: WindowInfo) {
         guard pendingClose == window.id else { return }
         if AX.windowExists(window.id, pid: window.pid) == false {
             stopClosePoll()
             run(switcher.handle(.windowClosed(window.id)))
         } else {
-            closeChecksRemaining -= 1
-            if closeChecksRemaining == 0 { dismissForCloseFailure(window) }
+            giveUpIfExhausted(window.pid)
         }
     }
 
-    private func dismissForCloseFailure(_ window: WindowInfo) {
+    private func checkQuit(_ app: NSRunningApplication) {
+        guard pendingQuit == app.processIdentifier else { return }
+        if app.isTerminated {
+            stopClosePoll()
+            run(switcher.handle(.appQuit(app.processIdentifier)))
+        } else {
+            giveUpIfExhausted(app.processIdentifier)
+        }
+    }
+
+    private func giveUpIfExhausted(_ pid: pid_t) {
+        closeChecksRemaining -= 1
+        if closeChecksRemaining == 0 { dismissForCloseFailure(pid) }
+    }
+
+    private func dismissForCloseFailure(_ pid: pid_t) {
         stopClosePoll()
         run(switcher.handle(.escape))
-        NSRunningApplication(processIdentifier: window.pid)?.activate(options: [])
+        NSRunningApplication(processIdentifier: pid)?.activate(options: [])
     }
 
     private func stopClosePoll() {
         closePoll?.invalidate()
         closePoll = nil
         pendingClose = nil
+        pendingQuit = nil
     }
 }
