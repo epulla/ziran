@@ -4,10 +4,10 @@ import CoreGraphics
 struct Switcher {
     enum Mode: Equatable { case closed, strip, dropdown, list }
     enum Key: Equatable {
-        case tab, shiftTab, nextWindow, previousWindow, up, down, enter, escape, optionUp, closeWindow, windowClosed(CGWindowID), appQuit(pid_t), query(String),
-            select(Int), pin(CGWindowID), jump(Int)
+        case tab, shiftTab, nextWindow, previousWindow, up, down, enter, escape, optionUp, closeWindow, quitApp, windowClosed(CGWindowID), appQuit(pid_t),
+            query(String), select(Int), pin(CGWindowID), jump(Int)
     }
-    enum Effect: Equatable { case none, update, focus(WindowInfo), close, closeWindow(WindowInfo), quitApp(pid_t) }
+    enum Effect: Equatable { case none, update, focus(WindowInfo), close, closeWindow(WindowInfo), closeWindows([WindowInfo]), quitApp(pid_t) }
 
     private(set) var mode: Mode = .closed
     private(set) var appIndex = 0
@@ -71,9 +71,17 @@ struct Switcher {
             return .update
         }
         if key == .closeWindow {
-            if mode == .strip { return apps.indices.contains(appIndex) ? .quitApp(apps[appIndex]) : .none }
-            guard mode == .dropdown || mode == .list, let window = selection else { return .none }
+            if mode == .strip {
+                guard apps.indices.contains(appIndex) else { return .none }
+                let pid = apps[appIndex]
+                return .closeWindows(windows.filter { $0.pid == pid })
+            }
+            guard let window = selection else { return .none }
             return .closeWindow(window)
+        }
+        if key == .quitApp {
+            guard mode == .strip, apps.indices.contains(appIndex) else { return .none }
+            return .quitApp(apps[appIndex])
         }
         if case .appQuit(let pid) = key {
             guard mode == .strip, apps.contains(pid) else { return .none }
@@ -85,10 +93,16 @@ struct Switcher {
             return .update
         }
         if case .windowClosed(let id) = key {
-            guard (mode == .dropdown || mode == .list), windows.contains(where: { $0.id == id }) else { return .none }
+            guard windows.contains(where: { $0.id == id }) else { return .none }
             let app = apps.indices.contains(appIndex) ? apps[appIndex] : nil
             windows.removeAll { $0.id == id }
             pins.removeAll { $0 == id }
+            if mode == .strip {
+                guard !apps.isEmpty else { return close() }
+                // When the selected app's last window closes, keep the slot so the next app takes its place.
+                appIndex = apps.firstIndex { $0 == app } ?? min(appIndex, apps.count - 1)
+                return .update
+            }
             // Removing a window can reorder or drop apps, so re-find the selected app.
             appIndex = apps.firstIndex { $0 == app } ?? 0
             let remaining = mode == .list ? list.count : (apps.contains { $0 == app } ? dropdown.count : 0)
@@ -105,7 +119,8 @@ struct Switcher {
             case .enter:
                 guard let selection else { return close() }
                 return finish(.focus(selection))
-            case .tab, .shiftTab, .nextWindow, .previousWindow, .optionUp, .escape, .closeWindow, .windowClosed, .appQuit, .select, .pin, .jump: return .none
+            case .tab, .shiftTab, .nextWindow, .previousWindow, .optionUp, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump:
+                return .none
             }
         }
         switch key {
@@ -128,7 +143,7 @@ struct Switcher {
         case .up:
             if mode == .dropdown && row > 0 { row -= 1 } else { mode = .list; row = 0; query = "" }
             return .update
-        case .query, .escape, .closeWindow, .windowClosed, .appQuit, .select, .pin, .jump: return .none
+        case .query, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump: return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
             guard let selection else { return close() }

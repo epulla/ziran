@@ -9,7 +9,7 @@ final class SwitcherTap {
     private var panel: SwitcherPanel!
     private var tap: CFMachPort?
     private var previousApp: NSRunningApplication?
-    private var pendingClose: CGWindowID?
+    private var pendingClose: [WindowInfo] = []
     private var pendingQuit: pid_t?
     private var closePoll: Timer?
     private var closeChecksRemaining = 0
@@ -81,7 +81,7 @@ final class SwitcherTap {
             }
             // Plain W must stay typeable in the search field, so the list uses ⌘W.
             if keycode == 13 && switcher.mode != .closed && (switcher.mode == .list ? flags.contains(.maskCommand) : alternate && !modifier) {
-                run(switcher.handle(.closeWindow))
+                run(switcher.handle(switcher.mode != .list && flags.contains(.maskShift) ? .quitApp : .closeWindow))
                 return true
             }
             guard switcher.mode == .strip || switcher.mode == .dropdown else { return false }
@@ -116,14 +116,8 @@ final class SwitcherTap {
             } else {
                 NSRunningApplication(processIdentifier: window.pid)?.activate()
             }
-        case .closeWindow(let window):
-            guard closePoll == nil else { break }
-            guard let element = tracker.element(window.id), AX.close(element) else {
-                dismissForCloseFailure(window.pid)
-                break
-            }
-            pendingClose = window.id
-            startClosePoll(checks: 10) { [weak self] in self?.checkClose(window) }
+        case .closeWindow(let window): close([window], checks: 10)
+        case .closeWindows(let windows): close(windows, checks: 20)
         case .quitApp(let pid):
             guard closePoll == nil else { break }
             guard let app = NSRunningApplication(processIdentifier: pid), app.terminate() else {
@@ -149,14 +143,28 @@ final class SwitcherTap {
         }
     }
 
-    private func checkClose(_ window: WindowInfo) {
-        guard pendingClose == window.id else { return }
-        if AX.windowExists(window.id, pid: window.pid) == false {
-            stopClosePoll()
-            run(switcher.handle(.windowClosed(window.id)))
-        } else {
-            giveUpIfExhausted(window.pid)
+    private func close(_ windows: [WindowInfo], checks: Int) {
+        guard closePoll == nil, let pid = windows.first?.pid else { return }
+        var pressed: [WindowInfo] = []
+        for window in windows {
+            if let element = tracker.element(window.id), AX.close(element) { pressed.append(window) }
         }
+        guard pressed.count == windows.count else {
+            dismissForCloseFailure(pid)
+            return
+        }
+        pendingClose = pressed
+        startClosePoll(checks: checks) { [weak self] in self?.checkClose() }
+    }
+
+    private func checkClose() {
+        guard let pid = pendingClose.first?.pid else { return }
+        let closed = pendingClose.filter { AX.windowExists($0.id, pid: $0.pid) == false }
+        pendingClose.removeAll { closed.contains($0) }
+        let emptied = pendingClose.isEmpty
+        if emptied { stopClosePoll() }
+        for window in closed { run(switcher.handle(.windowClosed(window.id))) }
+        if !emptied && closePoll != nil { giveUpIfExhausted(pid) }
     }
 
     private func checkQuit(_ app: NSRunningApplication) {
@@ -183,7 +191,7 @@ final class SwitcherTap {
     private func stopClosePoll() {
         closePoll?.invalidate()
         closePoll = nil
-        pendingClose = nil
+        pendingClose = []
         pendingQuit = nil
     }
 }

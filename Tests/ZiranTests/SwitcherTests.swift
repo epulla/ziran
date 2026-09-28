@@ -197,7 +197,7 @@ func switcherClosesWindow(app: pid_t?, keys: [Switcher.Key], requested: Switcher
     var switcher = Switcher()
     _ = switcher.open(fixture)
     _ = switcher.handle(.pin(3))
-    #expect(switcher.handle(.closeWindow) == .quitApp(2))
+    #expect(switcher.handle(.quitApp) == .quitApp(2))
     #expect(switcher.apps == [1, 2, 3])
     #expect(switcher.handle(.appQuit(9)) == .none)
     #expect(switcher.handle(.appQuit(2)) == .update)
@@ -211,4 +211,36 @@ func switcherClosesWindow(app: pid_t?, keys: [Switcher.Key], requested: Switcher
     #expect(switcher.handle(.appQuit(1)) == .close)
     #expect(switcher.mode == .closed)
     #expect(switcher.handle(.appQuit(1)) == .none)
+}
+
+@Test func switcherClosesAllAppWindowsFromStripAsTheyDisappear() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    _ = switcher.handle(.pin(3))
+    #expect(switcher.handle(.closeWindow) == .closeWindows([fixture[2], fixture[3]]))
+    #expect(switcher.apps == [1, 2, 3])
+    #expect(switcher.handle(.windowClosed(999)) == .none)
+    #expect(switcher.handle(.windowClosed(3)) == .update)
+    #expect(switcher.apps == [1, 3])
+    #expect(switcher.pins.isEmpty)
+    #expect(switcher.mode == .strip)
+    #expect(switcher.selection == fixture[4])
+    #expect(switcher.handle(.windowClosed(4)) == .update)
+    #expect(switcher.selection == fixture[4])
+    #expect(switcher.handle(.closeWindow) == .closeWindows([fixture[4]]))
+    #expect(switcher.handle(.windowClosed(5)) == .update)
+    #expect(switcher.selection == fixture[0])
+    #expect(switcher.handle(.windowClosed(1)) == .update)
+    #expect(switcher.handle(.windowClosed(2)) == .close)
+    #expect(switcher.mode == .closed)
+    #expect(switcher.handle(.windowClosed(2)) == .none)
+}
+
+@Test(arguments: [pid_t?(1), nil])
+func switcherQuitAppOnlyWorksInStrip(app: pid_t?) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: app)
+    if app == nil { _ = switcher.handle(.up) }
+    #expect(switcher.handle(.quitApp) == .none)
+    #expect(switcher.windows.count == (app == nil ? fixture.count : 2))
 }

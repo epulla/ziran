@@ -158,7 +158,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         label.widthAnchor.constraint(equalToConstant: max(size, icons.fittingSize.width)).isActive = true
         box.addArrangedSubview(label)
         if s.mode == .strip {
-            let stripHint = hint("↑ search   ↓ windows", size: 11 * scale)
+            let stripHint = hint("↑ search   ↓ windows   W close all   ⇧W quit", size: 11 * scale)
             stripHint.setContentCompressionResistancePriority(.required, for: .horizontal)
             box.addArrangedSubview(stripHint)
         }
