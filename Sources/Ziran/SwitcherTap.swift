@@ -52,7 +52,7 @@ final class SwitcherTap {
                     previousApp = NSWorkspace.shared.frontmostApplication
                     if let pid = previousApp?.processIdentifier { run(switcher.open(tracker.snapshot(), app: pid)) }
                 } else {
-                    run(switcher.handle(flags.contains(.maskShift) ? .up : .down))
+                    run(switcher.handle(flags.contains(.maskShift) ? .previousWindow : .nextWindow))
                 }
                 return true
             }

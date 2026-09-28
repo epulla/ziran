@@ -3,7 +3,9 @@ import CoreGraphics
 
 struct Switcher {
     enum Mode: Equatable { case closed, strip, dropdown, list }
-    enum Key: Equatable { case tab, shiftTab, up, down, enter, escape, optionUp, query(String), select(Int), pin(CGWindowID), jump(Int) }
+    enum Key: Equatable {
+        case tab, shiftTab, nextWindow, previousWindow, up, down, enter, escape, optionUp, query(String), select(Int), pin(CGWindowID), jump(Int)
+    }
     enum Effect: Equatable { case none, update, focus(WindowInfo), close }
 
     private(set) var mode: Mode = .closed
@@ -76,7 +78,7 @@ struct Switcher {
             case .enter:
                 guard let selection else { return close() }
                 return finish(.focus(selection))
-            case .tab, .shiftTab, .optionUp, .escape, .select, .pin, .jump: return .none
+            case .tab, .shiftTab, .nextWindow, .previousWindow, .optionUp, .escape, .select, .pin, .jump: return .none
             }
         }
         switch key {
@@ -84,6 +86,14 @@ struct Switcher {
             guard mode == .strip || mode == .dropdown, !apps.isEmpty else { return .none }
             appIndex = (appIndex + (key == .tab ? 1 : apps.count - 1)) % apps.count
             row = 0
+            return .update
+        case .nextWindow, .previousWindow:
+            guard !dropdown.isEmpty else { return .none }
+            if mode == .strip {
+                mode = .dropdown; row = 0
+            } else {
+                row = (row + (key == .nextWindow ? 1 : dropdown.count - 1)) % dropdown.count
+            }
             return .update
         case .down:
             if mode == .strip { mode = .dropdown; row = 0 } else { row = min(row + 1, max(0, dropdown.count - 1)) }

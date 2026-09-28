@@ -138,3 +138,16 @@ func switcherOpenApp(pid: pid_t, opened: Switcher.Effect, mode: Switcher.Mode, r
     _ = switcher.open(fixture, app: 1)
     #expect(switcher.handle(.optionUp) == .focus(fixture[1]))
 }
+
+@Test(arguments: [
+    ([Switcher.Key.nextWindow], fixture[0]),
+    ([.nextWindow, .nextWindow], fixture[1]),
+    ([.previousWindow, .previousWindow], fixture[1]),
+    ([.down, .nextWindow], fixture[0]),
+])
+func switcherCyclesAppWindows(keys: [Switcher.Key], expected: WindowInfo) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    for key in keys { _ = switcher.handle(key) }
+    #expect(switcher.handle(.optionUp) == .focus(expected))
+}
