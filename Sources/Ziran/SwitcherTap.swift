@@ -81,7 +81,7 @@ final class SwitcherTap {
             }
             // Plain W must stay typeable in the search field, so the list uses ⌘W.
             if keycode == 13 && switcher.mode != .closed && (switcher.mode == .list ? flags.contains(.maskCommand) : alternate && !modifier) {
-                run(switcher.handle(switcher.mode != .list && flags.contains(.maskShift) ? .quitApp : .closeWindow))
+                run(switcher.handle(.closeWindow))
                 return true
             }
             guard switcher.mode == .strip || switcher.mode == .dropdown else { return false }
@@ -91,6 +91,7 @@ final class SwitcherTap {
             case 125: key = .down
             case 36: key = .enter
             case 53: key = .escape
+            case 12 where !modifier: key = .quitApp
             case 24 where !modifier:
                 if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
                 return true
