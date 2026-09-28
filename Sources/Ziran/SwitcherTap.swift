@@ -46,6 +46,16 @@ final class SwitcherTap {
             let keycode = event.getIntegerValueField(.keyboardEventKeycode)
             let alternate = flags.contains(.maskAlternate)
             let modifier = flags.contains(.maskCommand) || flags.contains(.maskControl)
+            // 50 is ANSI grave; ISO keyboards report the same key as 10.
+            if (keycode == 50 || keycode == 10) && alternate && !modifier && switcher.mode != .list {
+                if switcher.mode == .closed {
+                    previousApp = NSWorkspace.shared.frontmostApplication
+                    if let pid = previousApp?.processIdentifier { run(switcher.open(tracker.snapshot(), app: pid)) }
+                } else {
+                    run(switcher.handle(flags.contains(.maskShift) ? .up : .down))
+                }
+                return true
+            }
             if keycode == 48 && alternate && !modifier {
                 if switcher.mode == .closed {
                     previousApp = NSWorkspace.shared.frontmostApplication

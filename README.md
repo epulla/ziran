@@ -23,6 +23,7 @@ remove and re-add Ziran in Accessibility settings.
 | --- | --- |
 | ⌥Tab | Open app strip |
 | ⌥⇧Tab | Select previous app in strip |
+| ⌥` | Open window dropdown for current app; repeat ` / ⇧` to move, ↑ at top to search its windows |
 | ↓ | Open window dropdown for selected app |
 | ↑ | Open filterable list of all windows |
 | Release ⌥ or press ↩ | Switch to selected item |

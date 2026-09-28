@@ -29,11 +29,12 @@ struct Switcher {
         }
     }
 
-    mutating func open(_ ordered: [WindowInfo]) -> Effect {
-        windows = ordered
-        mode = .strip
-        appIndex = apps.count > 1 ? 1 : 0
-        row = 0
+    mutating func open(_ ordered: [WindowInfo], app pid: pid_t? = nil) -> Effect {
+        windows = pid.map { MRU.windows(of: $0, in: ordered) } ?? ordered
+        mode = pid == nil ? .strip : .dropdown
+        appIndex = pid == nil && apps.count > 1 ? 1 : 0
+        // Pins sort first, so pick the first listed window that isn't the current one rather than row 1.
+        row = pid == nil ? 0 : dropdown.firstIndex { $0 != windows.first } ?? 0
         query = ""
         return apps.isEmpty ? close() : .update
     }

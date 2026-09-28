@@ -1,3 +1,4 @@
+import Darwin
 import Testing
 @testable import Ziran
 
@@ -106,4 +107,34 @@ func switcherSelect(keys: [Switcher.Key], effect: Switcher.Effect, mode: Switche
     #expect(switcher.mode == mode)
     #expect(switcher.row == row)
     #expect(switcher.appIndex == appIndex)
+}
+
+@Test(arguments: [
+    (pid_t(1), Switcher.Effect.update, Switcher.Mode.dropdown, Switcher.Effect.focus(fixture[1])),
+    (2, .update, .dropdown, .focus(fixture[2])),
+    (9, .close, .closed, .none),
+])
+func switcherOpenApp(pid: pid_t, opened: Switcher.Effect, mode: Switcher.Mode, released: Switcher.Effect) {
+    var switcher = Switcher()
+    #expect(switcher.open(fixture, app: pid) == opened)
+    #expect(switcher.mode == mode)
+    #expect(switcher.handle(.optionUp) == released)
+}
+
+@Test func switcherOpenAppSearchesOnlyThatApp() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    _ = switcher.handle(.up)
+    _ = switcher.handle(.up)
+    #expect(switcher.mode == .list)
+    #expect(switcher.list == [fixture[0], fixture[1]])
+}
+
+@Test func switcherOpenAppSkipsCurrentWindowWhenPinned() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    _ = switcher.handle(.pin(2))
+    _ = switcher.handle(.escape)
+    _ = switcher.open(fixture, app: 1)
+    #expect(switcher.handle(.optionUp) == .focus(fixture[1]))
 }
