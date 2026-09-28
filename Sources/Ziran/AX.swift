@@ -84,10 +84,23 @@ enum AX {
         AXUIElementSetAttributeValue(el, kAXMainAttribute as CFString, true as CFTypeRef)
     }
 
-    static func close(_ el: AXUIElement) {
+    static func close(_ el: AXUIElement) -> Bool {
         var button: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(el, kAXCloseButtonAttribute as CFString, &button) == .success, let button else { return }
-        AXUIElementPerformAction(button as! AXUIElement, kAXPressAction as CFString)
+        guard AXUIElementCopyAttributeValue(el, kAXCloseButtonAttribute as CFString, &button) == .success, let button else { return false }
+        return AXUIElementPerformAction(button as! AXUIElement, kAXPressAction as CFString) == .success
+    }
+
+    static func windowExists(_ id: CGWindowID, pid: pid_t) -> Bool? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(AXUIElementCreateApplication(pid), kAXWindowsAttribute as CFString, &value) == .success,
+            let windows = value as? [AXUIElement]
+        else { return nil }
+        var unknown = false
+        for window in windows {
+            guard let windowID = windowID(window) else { unknown = true; continue }
+            if windowID == id { return true }
+        }
+        return unknown ? nil : false
     }
 
     static func flip(_ rect: CGRect, primaryMaxY: CGFloat) -> CGRect {

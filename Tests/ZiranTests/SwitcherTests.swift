@@ -153,20 +153,43 @@ func switcherCyclesAppWindows(keys: [Switcher.Key], expected: WindowInfo) {
 }
 
 @Test(arguments: [
-    (pid_t?(1), [Switcher.Key.closeWindow], Switcher.Effect.closeWindow(fixture[1]), Switcher.Mode.dropdown),
-    (1, [.closeWindow, .closeWindow], .closeWindow(fixture[0]), .closed),
-    (1, [.pin(2), .closeWindow], .closeWindow(fixture[1]), .dropdown),
-    (nil, [.closeWindow], .none, .strip),
-    (nil, [.down, .closeWindow], .closeWindow(fixture[2]), .closed),
-    (nil, [.up, .down, .closeWindow], .closeWindow(fixture[1]), .list),
+    (pid_t?(1), [Switcher.Key.closeWindow], Switcher.Effect.closeWindow(fixture[1]), Switcher.Effect.update, Switcher.Mode.dropdown),
+    (1, [.pin(2), .closeWindow], .closeWindow(fixture[1]), .update, .dropdown),
+    (nil, [.closeWindow], .none, .none, .strip),
+    (nil, [.down, .closeWindow], .closeWindow(fixture[2]), .close, .closed),
+    (nil, [.up, .down, .closeWindow], .closeWindow(fixture[1]), .update, .list),
 ])
-func switcherClosesWindow(app: pid_t?, keys: [Switcher.Key], expected: Switcher.Effect, mode: Switcher.Mode) {
+func switcherClosesWindow(app: pid_t?, keys: [Switcher.Key], requested: Switcher.Effect, removed: Switcher.Effect, mode: Switcher.Mode) {
     var switcher = Switcher()
     _ = switcher.open(fixture, app: app)
     var effect = Switcher.Effect.update
     for key in keys { effect = switcher.handle(key) }
-    #expect(effect == expected)
+    #expect(effect == requested)
+    if case .closeWindow(let window) = requested {
+        #expect(switcher.windows.contains(window))
+        if keys.contains(.pin(window.id)) { #expect(switcher.pins.contains(window.id)) }
+        #expect(switcher.handle(.windowClosed(window.id)) == removed)
+        #expect(!switcher.windows.contains(window))
+    }
     #expect(switcher.mode == mode)
     #expect(switcher.pins.isEmpty)
-    if case .closeWindow(let window) = expected { #expect(!switcher.windows.contains(window)) }
+}
+
+@Test func switcherRetainsWindowWithoutClosureAndIgnoresLateNotification() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    #expect(switcher.handle(.closeWindow) == .closeWindow(fixture[1]))
+    #expect(switcher.dropdown == [fixture[0], fixture[1]])
+    #expect(switcher.handle(.windowClosed(999)) == .none)
+    #expect(switcher.handle(.escape) == .close)
+    #expect(switcher.handle(.windowClosed(fixture[1].id)) == .none)
+}
+
+@Test func switcherClosesAfterLastWindowDisappears() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    #expect(switcher.handle(.windowClosed(fixture[1].id)) == .update)
+    #expect(switcher.handle(.closeWindow) == .closeWindow(fixture[0]))
+    #expect(switcher.handle(.windowClosed(fixture[0].id)) == .close)
+    #expect(switcher.mode == .closed)
 }

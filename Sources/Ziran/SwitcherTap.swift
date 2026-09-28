@@ -9,6 +9,9 @@ final class SwitcherTap {
     private var panel: SwitcherPanel!
     private var tap: CFMachPort?
     private var previousApp: NSRunningApplication?
+    private var pendingClose: CGWindowID?
+    private var closePoll: Timer?
+    private var closeChecksRemaining = 0
 
     init(tracker: WindowTracker) {
         self.tracker = tracker
@@ -100,16 +103,49 @@ final class SwitcherTap {
         switch effect {
         case .update: panel.show(switcher)
         case .focus(let window):
+            stopClosePoll()
             panel.hide()
             if let element = tracker.element(window.id) { AX.focus(element) } else { NSRunningApplication(processIdentifier: window.pid)?.activate() }
         case .closeWindow(let window):
-            if let element = tracker.element(window.id) { AX.close(element) }
-            run(switcher.mode == .closed ? .close : .update)
+            guard pendingClose == nil else { break }
+            guard let element = tracker.element(window.id), AX.close(element) else {
+                dismissForCloseFailure(window)
+                break
+            }
+            pendingClose = window.id
+            closeChecksRemaining = 10
+            closePoll = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.checkClose(window) }
+            }
         case .close:
+            stopClosePoll()
             let wasKey = panel.isKeyWindow
             panel.hide()
             if wasKey { previousApp?.activate(options: []) }
         case .none: break
         }
+    }
+
+    private func checkClose(_ window: WindowInfo) {
+        guard pendingClose == window.id else { return }
+        if AX.windowExists(window.id, pid: window.pid) == false {
+            stopClosePoll()
+            run(switcher.handle(.windowClosed(window.id)))
+        } else {
+            closeChecksRemaining -= 1
+            if closeChecksRemaining == 0 { dismissForCloseFailure(window) }
+        }
+    }
+
+    private func dismissForCloseFailure(_ window: WindowInfo) {
+        stopClosePoll()
+        run(switcher.handle(.escape))
+        NSRunningApplication(processIdentifier: window.pid)?.activate(options: [])
+    }
+
+    private func stopClosePoll() {
+        closePoll?.invalidate()
+        closePoll = nil
+        pendingClose = nil
     }
 }
