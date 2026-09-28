@@ -143,8 +143,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             if s.mode == .strip, let badge = badge(index, size: 11 * scale, selected: false) {
                 tile.addSubview(badge)
                 NSLayoutConstraint.activate([
-                    badge.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: -3),
-                    badge.bottomAnchor.constraint(equalTo: tile.bottomAnchor, constant: -2),
+                    badge.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: -(size * 0.08).rounded()),
+                    badge.bottomAnchor.constraint(equalTo: tile.bottomAnchor, constant: -(size * 0.08).rounded()),
                 ])
             }
             icons.addArrangedSubview(tile)
