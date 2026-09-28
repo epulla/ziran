@@ -80,7 +80,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                         root.addArrangedSubview(line)
                     }
                 }
-                root.addArrangedSubview(hint("= pin · w close · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
+                root.addArrangedSubview(hint("= pin · ⌥W close window · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
             }
         }
         visualEffect.subviews.forEach { $0.removeFromSuperview() }
