@@ -126,6 +126,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         box.alignment = .centerX
         let icons = NSStackView()
         icons.spacing = (8 * scale).rounded()
+        // Without this the stack can stretch to the dropdown width on re-render and pin the icon left.
+        icons.setHuggingPriority(.required, for: .horizontal)
         let size = Settings.iconSize
         for (index, pid) in s.apps.enumerated() {
             let tile: NSView = s.mode == .strip ? RowView(index: index, onKey: onKey) : NSView()
