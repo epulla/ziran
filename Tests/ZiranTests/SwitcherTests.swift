@@ -151,3 +151,22 @@ func switcherCyclesAppWindows(keys: [Switcher.Key], expected: WindowInfo) {
     for key in keys { _ = switcher.handle(key) }
     #expect(switcher.handle(.optionUp) == .focus(expected))
 }
+
+@Test(arguments: [
+    (pid_t?(1), [Switcher.Key.closeWindow], Switcher.Effect.closeWindow(fixture[1]), Switcher.Mode.dropdown),
+    (1, [.closeWindow, .closeWindow], .closeWindow(fixture[0]), .closed),
+    (1, [.pin(2), .closeWindow], .closeWindow(fixture[1]), .dropdown),
+    (nil, [.closeWindow], .none, .strip),
+    (nil, [.down, .closeWindow], .closeWindow(fixture[2]), .closed),
+    (nil, [.up, .down, .closeWindow], .closeWindow(fixture[1]), .list),
+])
+func switcherClosesWindow(app: pid_t?, keys: [Switcher.Key], expected: Switcher.Effect, mode: Switcher.Mode) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: app)
+    var effect = Switcher.Effect.update
+    for key in keys { effect = switcher.handle(key) }
+    #expect(effect == expected)
+    #expect(switcher.mode == mode)
+    #expect(switcher.pins.isEmpty)
+    if case .closeWindow(let window) = expected { #expect(!switcher.windows.contains(window)) }
+}

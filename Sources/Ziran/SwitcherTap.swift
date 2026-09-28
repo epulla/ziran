@@ -71,6 +71,11 @@ final class SwitcherTap {
                 run(switcher.handle(.jump(index)))
                 return true
             }
+            // Plain W must stay typeable in the search field, so the list uses ⌘W.
+            if keycode == 13 && switcher.mode != .closed && (switcher.mode == .list ? flags.contains(.maskCommand) : alternate && !modifier) {
+                run(switcher.handle(.closeWindow))
+                return true
+            }
             guard switcher.mode == .strip || switcher.mode == .dropdown else { return false }
             let key: Switcher.Key?
             switch keycode {
@@ -97,6 +102,9 @@ final class SwitcherTap {
         case .focus(let window):
             panel.hide()
             if let element = tracker.element(window.id) { AX.focus(element) } else { NSRunningApplication(processIdentifier: window.pid)?.activate() }
+        case .closeWindow(let window):
+            if let element = tracker.element(window.id) { AX.close(element) }
+            run(switcher.mode == .closed ? .close : .update)
         case .close:
             let wasKey = panel.isKeyWindow
             panel.hide()

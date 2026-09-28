@@ -4,9 +4,9 @@ import CoreGraphics
 struct Switcher {
     enum Mode: Equatable { case closed, strip, dropdown, list }
     enum Key: Equatable {
-        case tab, shiftTab, nextWindow, previousWindow, up, down, enter, escape, optionUp, query(String), select(Int), pin(CGWindowID), jump(Int)
+        case tab, shiftTab, nextWindow, previousWindow, up, down, enter, escape, optionUp, closeWindow, query(String), select(Int), pin(CGWindowID), jump(Int)
     }
-    enum Effect: Equatable { case none, update, focus(WindowInfo), close }
+    enum Effect: Equatable { case none, update, focus(WindowInfo), close, closeWindow(WindowInfo) }
 
     private(set) var mode: Mode = .closed
     private(set) var appIndex = 0
@@ -69,6 +69,18 @@ struct Switcher {
             }
             return .update
         }
+        if key == .closeWindow {
+            guard mode == .dropdown || mode == .list, let window = selection else { return .none }
+            let app = apps.indices.contains(appIndex) ? apps[appIndex] : nil
+            windows.removeAll { $0.id == window.id }
+            pins.removeAll { $0 == window.id }
+            // Removing a window can reorder or drop apps, so re-find the selected app.
+            appIndex = apps.firstIndex { $0 == app } ?? 0
+            let remaining = mode == .list ? list.count : (apps.contains { $0 == app } ? dropdown.count : 0)
+            guard remaining > 0 else { return finish(.closeWindow(window)) }
+            row = min(row, remaining - 1)
+            return .closeWindow(window)
+        }
         if key == .escape { return close() }
         if mode == .list {
             switch key {
@@ -78,7 +90,7 @@ struct Switcher {
             case .enter:
                 guard let selection else { return close() }
                 return finish(.focus(selection))
-            case .tab, .shiftTab, .nextWindow, .previousWindow, .optionUp, .escape, .select, .pin, .jump: return .none
+            case .tab, .shiftTab, .nextWindow, .previousWindow, .optionUp, .escape, .closeWindow, .select, .pin, .jump: return .none
             }
         }
         switch key {
@@ -101,7 +113,7 @@ struct Switcher {
         case .up:
             if mode == .dropdown && row > 0 { row -= 1 } else { mode = .list; row = 0; query = "" }
             return .update
-        case .query, .escape, .select, .pin, .jump: return .none
+        case .query, .escape, .closeWindow, .select, .pin, .jump: return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
             guard let selection else { return close() }

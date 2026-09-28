@@ -44,7 +44,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             let field = search ?? makeSearch(height: (32 * scale).rounded(), width: listWidth - 16)
             field.font = .systemFont(ofSize: fontSize); field.stringValue = s.query
             root.addArrangedSubview(field)
-            root.addArrangedSubview(hint("↩ switch · ⌘1-9 jump · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
+            root.addArrangedSubview(hint("↩ switch · ⌘1-9 jump · ⌘W close window · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
             if s.list.isEmpty {
                 root.addArrangedSubview(empty(size: rowHeight, width: listWidth - 16))
             } else {
@@ -80,7 +80,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                         root.addArrangedSubview(line)
                     }
                 }
-                root.addArrangedSubview(hint("= pin · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
+                root.addArrangedSubview(hint("= pin · w close · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
             }
         }
         visualEffect.subviews.forEach { $0.removeFromSuperview() }

@@ -84,6 +84,12 @@ enum AX {
         AXUIElementSetAttributeValue(el, kAXMainAttribute as CFString, true as CFTypeRef)
     }
 
+    static func close(_ el: AXUIElement) {
+        var button: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(el, kAXCloseButtonAttribute as CFString, &button) == .success, let button else { return }
+        AXUIElementPerformAction(button as! AXUIElement, kAXPressAction as CFString)
+    }
+
     static func flip(_ rect: CGRect, primaryMaxY: CGFloat) -> CGRect {
         CGRect(x: rect.origin.x, y: primaryMaxY - rect.maxY, width: rect.width, height: rect.height)
     }
