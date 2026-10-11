@@ -109,7 +109,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                         root.addArrangedSubview(line)
                     }
                 }
-                root.addArrangedSubview(hint("= pin · W close window · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
+                for line in hintLines(s.mode) { root.addArrangedSubview(hint(line, size: 11 * scale, width: contentWidth - 16)) }
             }
         }
         visualEffect.subviews.forEach { $0.removeFromSuperview() }
@@ -221,9 +221,11 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         label.widthAnchor.constraint(equalToConstant: max(size, icons.fittingSize.width)).isActive = true
         box.addArrangedSubview(label)
         if mode == .strip {
-            let stripHint = hint("↑ search   ↓ windows   W close all   Q quit", size: 11 * scale)
-            stripHint.setContentCompressionResistancePriority(.required, for: .horizontal)
-            box.addArrangedSubview(stripHint)
+            for line in hintLines(s.mode) {
+                let stripHint = hint(line, size: 11 * scale)
+                stripHint.setContentCompressionResistancePriority(.required, for: .horizontal)
+                box.addArrangedSubview(stripHint)
+            }
         }
         return box
     }
@@ -325,6 +327,16 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         label.textColor = selected ? .white : .secondaryLabelColor
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
+    }
+
+    // Keys in the strip and dropdown are pressed while ⌥ is still held, so the hints leave ⌥ out.
+    private func hintLines(_ mode: Switcher.Mode) -> [String] {
+        switch mode {
+        case .strip: return ["⇥ next app · ↑ search · ↓ windows · → quick nav · 1-9 jump", "− bookmark · W close all · Q quit"]
+        case .dropdown: return ["↑↓ move · ⇥ next app · → quick nav · 1-9 jump · release ⌥ to switch", "= pin · − bookmark · W close window"]
+        case .quickNav: return ["↑↓ move · ← back · release ⌥ to open"]
+        case .list, .closed: return []
+        }
     }
 
     private func hint(_ text: String, size: CGFloat, width: CGFloat? = nil) -> NSView {
