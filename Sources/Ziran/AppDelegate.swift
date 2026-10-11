@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func start() {
-        let tracker = WindowTracker(); tracker.start(); let tap = SwitcherTap(tracker: tracker)
+        let tracker = WindowTracker(); tracker.start(); let tap = SwitcherTap(tracker: tracker, resizer: WindowResizer())
         self.tracker = tracker; switcherTap = tap
         if !tap.start() {
             NSAlert(

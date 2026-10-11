@@ -14,7 +14,7 @@
 - Shortcuts are fixed Rectangle defaults, with no rebinding:
   - ⌃⌥←→↑↓: halves
   - ⌃⌥U/I/J/K: top-left/top-right/bottom-left/bottom-right corners
-  - ⌃⌥↩: maximize
+  - ⌃⌥↩ or ⌃⌥F: maximize (F added at the user's request)
   - ⌃⌥C: center
   - ⌃⌥⌫: restore
   - ⌃⌥⌘←→: next/previous display
@@ -30,6 +30,6 @@
 ## Tasks
 
 - [x] Pure `Layout` geometry: action + visible frame + current frame → target frame, covering halves with cycling, corners, maximize, center, and display moves. Check: `make test` passes with new `LayoutTests` table cases.
-- [ ] Hotkeys in the event tap apply layouts to the focused window, with restore. Check: manually run every shortcut on a Finder window and a Chrome window, including the display move on two screens.
+- [x] Hotkeys in the event tap apply layouts to the focused window, with restore. Check: manually run every shortcut on a Finder window and a Chrome window, including the display move on two screens.
 - [ ] "Window shortcuts" setting, plus the menu-bar "Window" submenu; turning the setting off disables the hotkeys. Check: `make test` passes with a new `Settings` test, and manually confirm the submenu applies actions and the toggle works.
 - [ ] Document the shortcuts in `README.md` and delete this plan file. Check: `make format && make lint && make test` passes.
