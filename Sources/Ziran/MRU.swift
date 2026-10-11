@@ -11,15 +11,13 @@ struct WindowInfo: Equatable, Sendable {
 }
 
 enum MRU {
-    static func order(_ windows: [WindowInfo], lastFocus: [CGWindowID: Date], zOrder: [CGWindowID]) -> [WindowInfo] {
+    static func order(_ windows: [WindowInfo], lastFocus: [CGWindowID: Date], appActivation: [pid_t: Date], zOrder: [CGWindowID]) -> [WindowInfo] {
         let z = Dictionary(uniqueKeysWithValues: zOrder.enumerated().map { ($1, $0) })
         return windows.enumerated().sorted {
-            let left = lastFocus[$0.element.id]
-            let right = lastFocus[$1.element.id]
-            if left != nil || right != nil {
-                if left != right { return (left ?? .distantPast) > (right ?? .distantPast) }
-                return $0.offset < $1.offset
-            }
+            // Windows never seen focused fall back to their app's activation time, so a just-launched app ranks like Cmd+Tab.
+            let left = lastFocus[$0.element.id] ?? appActivation[$0.element.pid]
+            let right = lastFocus[$1.element.id] ?? appActivation[$1.element.pid]
+            if left != right { return (left ?? .distantPast) > (right ?? .distantPast) }
             let leftIndex = z[$0.element.id] ?? .max
             let rightIndex = z[$1.element.id] ?? .max
             return leftIndex == rightIndex ? $0.offset < $1.offset : leftIndex < rightIndex
