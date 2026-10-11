@@ -7,6 +7,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private var search: NSTextField?
     private var currentIndex = 0
     private var icons: [pid_t: NSImage] = [:]
+    private var launchObserver: NSObjectProtocol?
 
     init(onKey: @escaping (Switcher.Key) -> Void) {
         self.onKey = onKey
@@ -24,6 +25,17 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         visualEffect.layer?.cornerRadius = 14
         visualEffect.layer?.masksToBounds = true
         contentView = visualEffect
+        // A cold icon load can take ~70 ms, so load icons up front instead of on the first open.
+        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular { _ = appIcon(app.processIdentifier) }
+        launchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
+            MainActor.assumeIsolated {
+                guard let pid else { return }
+                _ = self?.appIcon(pid)
+            }
+        }
     }
 
     override var canBecomeKey: Bool { true }
