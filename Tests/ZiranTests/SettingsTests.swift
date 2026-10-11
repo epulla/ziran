@@ -23,6 +23,19 @@ import Testing
     Settings.defaults = .standard
 }
 
+@MainActor @Test func quickNavKeepsOrderAndDropsMissingFiles() {
+    Settings.defaults = UserDefaults(suiteName: "ZiranTests")!
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
+    #expect(Settings.quickNav.isEmpty)
+    let folder = FileManager.default.temporaryDirectory
+    let web = URL(string: "https://github.com/epulla/ziran")!
+    let missing = folder.appendingPathComponent("ziran-missing-\(UUID().uuidString)")
+    Settings.quickNav = [web, missing, folder]
+    #expect(Settings.quickNav == [web, folder])
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
+    Settings.defaults = .standard
+}
+
 @MainActor @Test func windowShortcutsDefaultOnAndPersist() {
     Settings.defaults = UserDefaults(suiteName: "ZiranTests")!
     Settings.defaults.removePersistentDomain(forName: "ZiranTests")
