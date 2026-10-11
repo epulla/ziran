@@ -58,7 +58,7 @@ final class SwitcherTap {
             let keycode = event.getIntegerValueField(.keyboardEventKeycode)
             let alternate = flags.contains(.maskAlternate)
             let modifier = flags.contains(.maskCommand) || flags.contains(.maskControl)
-            if switcher.mode == .closed && flags.contains(.maskControl) && alternate && !flags.contains(.maskShift),
+            if Settings.windowShortcuts && switcher.mode == .closed && flags.contains(.maskControl) && alternate && !flags.contains(.maskShift),
                 let command = flags.contains(.maskCommand) ? Self.displayKeys[keycode] : Self.resizeKeys[keycode]
             {
                 resizer.perform(command)

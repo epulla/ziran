@@ -31,5 +31,5 @@
 
 - [x] Pure `Layout` geometry: action + visible frame + current frame → target frame, covering halves with cycling, corners, maximize, center, and display moves. Check: `make test` passes with new `LayoutTests` table cases.
 - [x] Hotkeys in the event tap apply layouts to the focused window, with restore. Check: manually run every shortcut on a Finder window and a Chrome window, including the display move on two screens.
-- [ ] "Window shortcuts" setting, plus the menu-bar "Window" submenu; turning the setting off disables the hotkeys. Check: `make test` passes with a new `Settings` test, and manually confirm the submenu applies actions and the toggle works.
+- [x] "Window shortcuts" setting, plus the menu-bar "Window" submenu; turning the setting off disables the hotkeys. Check: `make test` passes with a new `Settings` test, and manually confirm the submenu applies actions and the toggle works.
 - [ ] Document the shortcuts in `README.md` and delete this plan file. Check: `make format && make lint && make test` passes.

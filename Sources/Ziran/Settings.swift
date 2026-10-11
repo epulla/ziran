@@ -18,6 +18,11 @@ enum Settings {
         set { defaults.set(min(max(newValue, iconSizeRange.lowerBound), iconSizeRange.upperBound), forKey: "iconSize") }
     }
 
+    static var windowShortcuts: Bool {
+        get { defaults.object(forKey: "windowShortcuts") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "windowShortcuts") }
+    }
+
     private static func value(_ key: String, default fallback: Double, range: ClosedRange<Double>) -> Double {
         let value = defaults.double(forKey: key)
         return value == 0 ? fallback : min(max(value, range.lowerBound), range.upperBound)
