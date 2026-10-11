@@ -4,6 +4,7 @@ import ApplicationServices
 @MainActor
 final class WindowTracker {
     private var lastFocus: [CGWindowID: Date] = [:]
+    private var lastActivation: [pid_t: Date] = [:]
     private var observers: [pid_t: AXObserver] = [:]
     private var elements: [CGWindowID: AXUIElement] = [:]
     private var workspaceObservers: [NSObjectProtocol] = []
@@ -16,6 +17,7 @@ final class WindowTracker {
                 let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
                 MainActor.assumeIsolated {
                     guard let pid else { return }
+                    self?.lastActivation[pid] = Date()
                     self?.observe(pid)
                     if let el = AX.focusedWindow() { self?.touch(el) }
                 }
@@ -25,6 +27,7 @@ final class WindowTracker {
                 let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
                 MainActor.assumeIsolated {
                     guard let pid else { return }
+                    self?.lastActivation[pid] = nil
                     self?.removeObserver(pid)
                 }
             })
@@ -72,7 +75,7 @@ final class WindowTracker {
         elements = current
         let kept = Set(windows.map(\.id))
         lastFocus = lastFocus.filter { kept.contains($0.key) }
-        return MRU.order(windows, lastFocus: lastFocus, zOrder: zOrder)
+        return MRU.order(windows, lastFocus: lastFocus, appActivation: lastActivation, zOrder: zOrder)
     }
 
     func element(_ id: CGWindowID) -> AXUIElement? { elements[id] }
