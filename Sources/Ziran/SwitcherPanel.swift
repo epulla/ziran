@@ -6,6 +6,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private let onKey: (Switcher.Key) -> Void
     private var search: NSTextField?
     private var currentIndex = 0
+    private var icons: [pid_t: NSImage] = [:]
+    private var launchObserver: NSObjectProtocol?
 
     init(onKey: @escaping (Switcher.Key) -> Void) {
         self.onKey = onKey
@@ -23,6 +25,17 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         visualEffect.layer?.cornerRadius = 14
         visualEffect.layer?.masksToBounds = true
         contentView = visualEffect
+        // A cold icon load can take ~70 ms, so load icons up front instead of on the first open.
+        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular { _ = appIcon(app.processIdentifier) }
+        launchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
+            MainActor.assumeIsolated {
+                guard let pid else { return }
+                _ = self?.appIcon(pid)
+            }
+        }
     }
 
     override var canBecomeKey: Bool { true }
@@ -110,6 +123,14 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
 
     func hide() { orderOut(nil) }
 
+    // Loading an app icon costs ~5 ms and every key press re-renders every tile.
+    private func appIcon(_ pid: pid_t) -> NSImage {
+        if let cached = icons[pid] { return cached }
+        guard let icon = NSRunningApplication(processIdentifier: pid)?.icon else { return NSImage() }
+        icons[pid] = icon
+        return icon
+    }
+
     private func makeSearch(height: CGFloat, width: CGFloat) -> NSTextField {
         let field = NSSearchField()
         field.placeholderString = "Type to filter"
@@ -134,7 +155,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             tile.wantsLayer = true
             tile.layer?.cornerRadius = size * 0.16
             tile.layer?.backgroundColor = index == s.appIndex ? NSColor.labelColor.withAlphaComponent(0.18).cgColor : NSColor.clear.cgColor
-            let icon = NSImageView(image: NSRunningApplication(processIdentifier: pid)?.icon ?? NSImage())
+            let icon = NSImageView(image: appIcon(pid))
             icon.imageScaling = .scaleProportionallyUpOrDown; tile.addSubview(icon)
             icon.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
@@ -174,7 +195,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         row.wantsLayer = true
         row.layer?.cornerRadius = 8 * scale
         row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
-        let icon = NSImageView(image: NSRunningApplication(processIdentifier: window.pid)?.icon ?? NSImage())
+        let icon = NSImageView(image: appIcon(window.pid))
         icon.imageScaling = .scaleProportionallyUpOrDown
         let appName = window.appName
         let title = window.title.isEmpty || window.title == appName ? appName : window.title + "  —  " + appName
