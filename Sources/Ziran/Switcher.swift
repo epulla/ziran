@@ -21,7 +21,7 @@ struct Switcher {
     private(set) var pins: [CGWindowID] = []
     private(set) var quickNav: [URL] = []
     private(set) var quickNavRow = 0
-    private var quickNavReturn = Mode.strip
+    private(set) var quickNavReturn = Mode.strip
 
     var apps: [pid_t] { MRU.apps(windows.filter { !$0.isMinimized }) }
     var dropdown: [WindowInfo] {

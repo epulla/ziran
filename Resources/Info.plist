@@ -18,6 +18,8 @@
 	<string>4</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Ziran asks Finder for the folder of the selected window when you bookmark it in quick nav.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSPrincipalClass</key>

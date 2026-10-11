@@ -30,6 +30,13 @@ enum AX {
         return value as? String ?? ""
     }
 
+    static func document(_ el: AXUIElement) -> URL? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(el, kAXDocumentAttribute as CFString, &value) == .success, let string = value as? String, !string.isEmpty
+        else { return nil }
+        return URL(string: string)
+    }
+
     static func isMinimized(_ el: AXUIElement) -> Bool {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(el, kAXMinimizedAttribute as CFString, &value) == .success else { return false }
