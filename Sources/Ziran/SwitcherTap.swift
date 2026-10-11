@@ -4,8 +4,15 @@ import CoreGraphics
 @MainActor
 final class SwitcherTap {
     private static let digits: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
+    private static let resizeKeys: [Int64: WindowResizer.Command] = [
+        123: .layout(.leftHalf), 124: .layout(.rightHalf), 126: .layout(.topHalf), 125: .layout(.bottomHalf),
+        32: .layout(.topLeft), 34: .layout(.topRight), 38: .layout(.bottomLeft), 40: .layout(.bottomRight),
+        36: .layout(.maximize), 3: .layout(.maximize), 8: .layout(.center), 51: .restore,
+    ]
+    private static let displayKeys: [Int64: WindowResizer.Command] = [124: .nextDisplay, 123: .previousDisplay]
     var switcher = Switcher()
     private let tracker: WindowTracker
+    private let resizer: WindowResizer
     private var panel: SwitcherPanel!
     private var tap: CFMachPort?
     private var previousApp: NSRunningApplication?
@@ -14,8 +21,9 @@ final class SwitcherTap {
     private var closePoll: Timer?
     private var closeChecksRemaining = 0
 
-    init(tracker: WindowTracker) {
+    init(tracker: WindowTracker, resizer: WindowResizer) {
         self.tracker = tracker
+        self.resizer = resizer
         panel = SwitcherPanel { [weak self] key in self?.run(self?.switcher.handle(key) ?? .none) }
     }
 
@@ -50,6 +58,12 @@ final class SwitcherTap {
             let keycode = event.getIntegerValueField(.keyboardEventKeycode)
             let alternate = flags.contains(.maskAlternate)
             let modifier = flags.contains(.maskCommand) || flags.contains(.maskControl)
+            if Settings.windowShortcuts && switcher.mode == .closed && flags.contains(.maskControl) && alternate && !flags.contains(.maskShift),
+                let command = flags.contains(.maskCommand) ? Self.displayKeys[keycode] : Self.resizeKeys[keycode]
+            {
+                resizer.perform(command)
+                return true
+            }
             // 50 is ANSI grave; ISO keyboards report the same key as 10.
             if (keycode == 50 || keycode == 10) && alternate && !modifier && switcher.mode != .list {
                 if switcher.mode == .closed {

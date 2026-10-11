@@ -22,3 +22,13 @@ import Testing
     Settings.defaults.removePersistentDomain(forName: "ZiranTests")
     Settings.defaults = .standard
 }
+
+@MainActor @Test func windowShortcutsDefaultOnAndPersist() {
+    Settings.defaults = UserDefaults(suiteName: "ZiranTests")!
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
+    #expect(Settings.windowShortcuts)
+    Settings.windowShortcuts = false
+    #expect(!Settings.windowShortcuts)
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
+    Settings.defaults = .standard
+}

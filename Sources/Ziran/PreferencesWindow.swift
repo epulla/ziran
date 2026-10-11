@@ -10,6 +10,7 @@ final class PreferencesWindow: NSWindowController {
     private let iconValueLabel = NSTextField(labelWithString: "")
     private let previewLabel = NSTextField(labelWithString: "Sample window title  —  Ziran")
     private let loginCheckbox = NSButton(checkboxWithTitle: "Launch at login", target: nil, action: nil)
+    private let windowShortcutsCheckbox = NSButton(checkboxWithTitle: "Window resize shortcuts (listed under Window in the menu bar)", target: nil, action: nil)
     private var didCenter = false
 
     init() {
@@ -60,7 +61,12 @@ final class PreferencesWindow: NSWindowController {
         separator.boxType = .separator
         loginCheckbox.target = self
         loginCheckbox.action = #selector(loginToggled)
-        let stack = NSStackView(views: [title, fontRow, previewLabel, caption, iconTitle, iconRow, iconCaption, separator, loginCheckbox])
+        windowShortcutsCheckbox.target = self
+        windowShortcutsCheckbox.action = #selector(windowShortcutsToggled)
+        windowShortcutsCheckbox.state = Settings.windowShortcuts ? .on : .off
+        let stack = NSStackView(views: [
+            title, fontRow, previewLabel, caption, iconTitle, iconRow, iconCaption, separator, loginCheckbox, windowShortcutsCheckbox,
+        ])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
@@ -184,6 +190,10 @@ final class PreferencesWindow: NSWindowController {
             NSAlert(error: error).runModal()
             refreshLoginState()
         }
+    }
+
+    @objc private func windowShortcutsToggled() {
+        Settings.windowShortcuts = windowShortcutsCheckbox.state == .on
     }
 
     @objc private func openProject() {

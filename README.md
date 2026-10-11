@@ -40,6 +40,20 @@ remove and re-add Ziran in Accessibility settings.
 
 Pins last until Ziran quits and sort first in the dropdown and list.
 
+### Window shortcuts
+
+Resize the focused window from anywhere. Also listed under menubar icon → Window.
+
+| Key | Result |
+| --- | --- |
+| ⌃⌥← / ⌃⌥→ | Left / right half; repeat to cycle ½ → ⅔ → ⅓ |
+| ⌃⌥↑ / ⌃⌥↓ | Top / bottom half |
+| ⌃⌥U / I / J / K | Top-left / top-right / bottom-left / bottom-right quarter |
+| ⌃⌥↩ or ⌃⌥F | Maximize |
+| ⌃⌥C | Center |
+| ⌃⌥⌫ | Restore size before the first Ziran resize |
+| ⌃⌥⌘← / ⌃⌥⌘→ | Move to previous / next display |
+
 ## Preferences
 
 Open menubar icon → Preferences… (⌘,).
@@ -47,6 +61,7 @@ Open menubar icon → Preferences… (⌘,).
 - Font size: 11–28 pt
 - Icon size: 48–160 pt for strip tiles
 - Launch at login
+- Window resize shortcuts on/off
 
 ## Development
 
@@ -64,6 +79,8 @@ Swift 6, SwiftPM, no dependencies. See `AGENTS.md` for conventions.
 ## Acknowledgements
 
 The switcher panel and preferences design are adapted from [AltTab](https://github.com/sr3d/AltTab) by Alex Le, used under the MIT License (Copyright (c) 2026 Alex Le).
+
+Window shortcut defaults follow [Rectangle](https://github.com/rxhanson/Rectangle) by Ryan Hanson.
 
 ## License
 
