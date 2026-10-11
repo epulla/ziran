@@ -147,6 +147,7 @@ final class SwitcherTap {
             let wasKey = panel.isKeyWindow
             panel.hide()
             if wasKey { previousApp?.activate(options: []) }
+        case .open, .toggleBookmark, .removeBookmark: break  // burnedout: wired up in quick-nav task 3
         case .none: break
         }
     }

@@ -1,13 +1,17 @@
-import Darwin
 import CoreGraphics
+import Darwin
+import Foundation
 
 struct Switcher {
-    enum Mode: Equatable { case closed, strip, dropdown, list }
+    enum Mode: Equatable { case closed, strip, dropdown, list, quickNav }
     enum Key: Equatable {
-        case tab, shiftTab, nextWindow, previousWindow, up, down, enter, escape, optionUp, closeWindow, quitApp, windowClosed(CGWindowID), appQuit(pid_t),
-            query(String), select(Int), pin(CGWindowID), jump(Int)
+        case tab, shiftTab, nextWindow, previousWindow, up, down, left, right, enter, escape, optionUp, closeWindow, quitApp, bookmark,
+            windowClosed(CGWindowID), appQuit(pid_t), query(String), select(Int), pin(CGWindowID), jump(Int), openQuickNav(Int), quickNavChanged([URL])
     }
-    enum Effect: Equatable { case none, update, focus(WindowInfo), close, closeWindow(WindowInfo), closeWindows([WindowInfo]), quitApp(pid_t) }
+    enum Effect: Equatable {
+        case none, update, focus(WindowInfo), close, closeWindow(WindowInfo), closeWindows([WindowInfo]), quitApp(pid_t), open(URL), toggleBookmark(WindowInfo),
+            removeBookmark(URL)
+    }
 
     private(set) var mode: Mode = .closed
     private(set) var appIndex = 0
@@ -15,6 +19,9 @@ struct Switcher {
     private(set) var query = ""
     private(set) var windows: [WindowInfo] = []
     private(set) var pins: [CGWindowID] = []
+    private(set) var quickNav: [URL] = []
+    private(set) var quickNavRow = 0
+    private var quickNavReturn = Mode.strip
 
     var apps: [pid_t] { MRU.apps(windows.filter { !$0.isMinimized }) }
     var dropdown: [WindowInfo] {
@@ -28,12 +35,14 @@ struct Switcher {
         case .strip: return dropdown.first
         case .dropdown: return dropdown.indices.contains(row) ? dropdown[row] : nil
         case .list: return list.indices.contains(row) ? list[row] : nil
-        case .closed: return nil
+        case .closed, .quickNav: return nil
         }
     }
 
-    mutating func open(_ ordered: [WindowInfo], app pid: pid_t? = nil) -> Effect {
+    mutating func open(_ ordered: [WindowInfo], app pid: pid_t? = nil, quickNav: [URL] = []) -> Effect {
         windows = pid.map { MRU.windows(of: $0, in: ordered) } ?? ordered
+        self.quickNav = quickNav
+        quickNavRow = 0
         mode = pid == nil ? .strip : .dropdown
         appIndex = pid == nil && apps.count > 1 ? 1 : 0
         // Pins sort first, so pick the first listed window that isn't the current one rather than row 1.
@@ -44,6 +53,29 @@ struct Switcher {
 
     mutating func handle(_ key: Key) -> Effect {
         guard mode != .closed else { return .none }
+        if case .quickNavChanged(let urls) = key {
+            quickNav = urls
+            quickNavRow = min(quickNavRow, max(0, urls.count - 1))
+            if mode == .quickNav && urls.isEmpty { mode = quickNavReturn }
+            return .update
+        }
+        if case .openQuickNav(let index) = key {
+            guard mode != .list, quickNav.indices.contains(index) else { return .none }
+            return finish(.open(quickNav[index]))
+        }
+        if mode == .quickNav {
+            switch key {
+            case .up: quickNavRow = max(0, quickNavRow - 1); return .update
+            case .down: quickNavRow = min(quickNavRow + 1, quickNav.count - 1); return .update
+            case .left: mode = quickNavReturn; return .update
+            case .enter, .optionUp: return quickNav.indices.contains(quickNavRow) ? finish(.open(quickNav[quickNavRow])) : close()
+            case .bookmark: return quickNav.indices.contains(quickNavRow) ? .removeBookmark(quickNav[quickNavRow]) : .none
+            case .escape: return close()
+            case .tab, .shiftTab, .nextWindow, .previousWindow, .right, .closeWindow, .quitApp, .windowClosed, .appQuit, .query, .select, .pin, .jump,
+                .openQuickNav, .quickNavChanged:
+                return .none
+            }
+        }
         if case .pin(let id) = key {
             let selected = selection
             if let index = pins.firstIndex(of: id) { pins.remove(at: index) } else { pins.append(id) }
@@ -66,7 +98,7 @@ struct Switcher {
             case .list:
                 guard list.indices.contains(index) else { return .none }
                 row = index
-            case .closed: return .none
+            case .closed, .quickNav: return .none
             }
             return .update
         }
@@ -119,7 +151,8 @@ struct Switcher {
             case .enter:
                 guard let selection else { return close() }
                 return finish(.focus(selection))
-            case .tab, .shiftTab, .nextWindow, .previousWindow, .optionUp, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump:
+            case .tab, .shiftTab, .nextWindow, .previousWindow, .left, .right, .optionUp, .escape, .closeWindow, .quitApp, .bookmark, .windowClosed, .appQuit,
+                .select, .pin, .jump, .openQuickNav, .quickNavChanged:
                 return .none
             }
         }
@@ -143,7 +176,12 @@ struct Switcher {
         case .up:
             if mode == .dropdown && row > 0 { row -= 1 } else { mode = .list; row = 0; query = "" }
             return .update
-        case .query, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump: return .none
+        case .right:
+            guard !quickNav.isEmpty else { return .none }
+            quickNavReturn = mode; mode = .quickNav; quickNavRow = 0
+            return .update
+        case .bookmark: return selection.map { .toggleBookmark($0) } ?? .none
+        case .left, .query, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump, .openQuickNav, .quickNavChanged: return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
             guard let selection else { return close() }
@@ -152,7 +190,7 @@ struct Switcher {
     }
 
     private mutating func finish(_ effect: Effect) -> Effect {
-        mode = .closed; appIndex = 0; row = 0; query = ""; return effect
+        mode = .closed; appIndex = 0; row = 0; quickNavRow = 0; query = ""; return effect
     }
 
     private mutating func close() -> Effect { finish(.close) }

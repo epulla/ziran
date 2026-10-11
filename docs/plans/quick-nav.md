@@ -39,7 +39,7 @@
 ## Tasks
 
 - [x] Bookmark storage in `Settings`: an ordered list with add, remove and move (done by assigning the array), and missing files dropped on read. Check: `make test` passes with new `SettingsTests`.
-- [ ] `Switcher` quick nav state: →/← enter and leave from strip/dropdown, ↑/↓/↩ inside it, ⌥⇧1–9 open, ⌥− toggles a bookmark or removes an item. Check: `make test` passes with new `SwitcherTests` table cases.
+- [x] `Switcher` quick nav state: →/← enter and leave from strip/dropdown, ↑/↓/↩ inside it, ⌥⇧1–9 open, ⌥− toggles a bookmark or removes an item. Check: `make test` passes with new `SwitcherTests` table cases.
 - [ ] Panel renders the "Quick nav" box. The tap maps the keys and works out what ⌥− should bookmark, and opening goes through `NSWorkspace`. Check: manually bookmark a TextEdit document, a Finder folder, an app and a quit app, then open each by key.
 - [ ] Hint line at the bottom of the panel for each view. Check: manually confirm the hints match the working keys in strip, dropdown, search and quick nav.
 - [ ] Preferences "Quick Nav" tab with add, URL entry, reorder and remove, and delete this plan file. Check: manually add and reorder items and see them in the switcher; `make format && make lint && make test` passes.
