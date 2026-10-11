@@ -6,6 +6,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private let onKey: (Switcher.Key) -> Void
     private var search: NSTextField?
     private var currentIndex = 0
+    private var icons: [pid_t: NSImage] = [:]
 
     init(onKey: @escaping (Switcher.Key) -> Void) {
         self.onKey = onKey
@@ -110,6 +111,14 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
 
     func hide() { orderOut(nil) }
 
+    // Loading an app icon costs ~5 ms and every key press re-renders every tile.
+    private func appIcon(_ pid: pid_t) -> NSImage {
+        if let cached = icons[pid] { return cached }
+        guard let icon = NSRunningApplication(processIdentifier: pid)?.icon else { return NSImage() }
+        icons[pid] = icon
+        return icon
+    }
+
     private func makeSearch(height: CGFloat, width: CGFloat) -> NSTextField {
         let field = NSSearchField()
         field.placeholderString = "Type to filter"
@@ -134,7 +143,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             tile.wantsLayer = true
             tile.layer?.cornerRadius = size * 0.16
             tile.layer?.backgroundColor = index == s.appIndex ? NSColor.labelColor.withAlphaComponent(0.18).cgColor : NSColor.clear.cgColor
-            let icon = NSImageView(image: NSRunningApplication(processIdentifier: pid)?.icon ?? NSImage())
+            let icon = NSImageView(image: appIcon(pid))
             icon.imageScaling = .scaleProportionallyUpOrDown; tile.addSubview(icon)
             icon.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
@@ -174,7 +183,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         row.wantsLayer = true
         row.layer?.cornerRadius = 8 * scale
         row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
-        let icon = NSImageView(image: NSRunningApplication(processIdentifier: window.pid)?.icon ?? NSImage())
+        let icon = NSImageView(image: appIcon(window.pid))
         icon.imageScaling = .scaleProportionallyUpOrDown
         let appName = window.appName
         let title = window.title.isEmpty || window.title == appName ? appName : window.title + "  —  " + appName
