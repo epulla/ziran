@@ -213,9 +213,10 @@ final class SwitcherTap {
         guard let display = templateDisplay() else { NSSound.beep(); return }
         var seen = Set<String>()
         let slots = tracker.snapshot().compactMap { window -> LayoutTemplate.Slot? in
-            guard !window.isMinimized, seen.insert(window.bundleId).inserted,
+            guard !window.isMinimized, !seen.contains(window.bundleId),
                 let element = tracker.element(window.id), let frame = AX.frame(element), display.contains(CGPoint(x: frame.midX, y: frame.midY))
             else { return nil }
+            seen.insert(window.bundleId)
             return LayoutTemplate.Slot(bundleID: window.bundleId, action: Layout.snapAction(for: frame, in: display))
         }
         guard !slots.isEmpty else { NSSound.beep(); return }
@@ -232,6 +233,7 @@ final class SwitcherTap {
         Task { @MainActor [weak self] in
             guard let self else { return }
             for slot in template.slots {
+                let deadline = Date().addingTimeInterval(5)
                 var app = NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == slot.bundleID }
                 if app == nil {
                     if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: slot.bundleID) {
@@ -243,14 +245,14 @@ final class SwitcherTap {
                     }
                 }
                 guard let app else { continue }
-                for _ in 0..<50 {
+                while Date() < deadline {
                     if let window = tracker.snapshot().first(where: { $0.pid == app.processIdentifier && !$0.isMinimized }),
                         let element = tracker.element(window.id)
                     {
                         AX.setFrame(element, Layout.frame(slot.action, current: .zero, in: display))
                         break
                     }
-                    try? await Task.sleep(for: .milliseconds(100))
+                    try? await Task.sleep(for: .milliseconds(min(100, max(1, Int(deadline.timeIntervalSinceNow * 1000)))))
                 }
             }
         }

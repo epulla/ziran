@@ -20,9 +20,10 @@ func layoutStripColumns(count: Int, tile: CGFloat, spacing: CGFloat, available: 
     (nil, 600, CGRect(x: 0, y: 0, width: 800, height: 900), -72),
     (CGFloat?(500), 600, CGRect(x: 0, y: 0, width: 1440, height: 900), 500),
     (CGFloat?(700), 600, CGRect(x: 0, y: 0, width: 1440, height: 900), 568),
+    (CGFloat?(100), 400, CGRect(x: 0, y: 0, width: 1440, height: 900), 272),
 ])
 func layoutPanelX(current: CGFloat?, width: CGFloat, area: CGRect, expected: CGFloat) {
-    #expect(Layout.panelX(current: current, width: width, quickNavWidth: 260, spacing: 12, area: area) == expected)
+    #expect(Layout.panelX(current: current, width: width, sideWidth: 260, spacing: 12, area: area) == expected)
 }
 
 @Test(arguments: [

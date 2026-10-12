@@ -55,9 +55,9 @@ enum Layout {
         max(1, min(7, count, Int((available + spacing) / (tile + spacing))))
     }
 
-    // Centers the panel, sliding left only when quick nav would not fit on the right.
-    static func panelX(current: CGFloat?, width: CGFloat, quickNavWidth: CGFloat, spacing: CGFloat, area: CGRect) -> CGFloat {
-        min(current ?? area.midX - width / 2, area.maxX - spacing - quickNavWidth - width)
+    // Centers the panel, sliding so both side boxes fit; quick nav on the right wins when there is room for only one.
+    static func panelX(current: CGFloat?, width: CGFloat, sideWidth: CGFloat, spacing: CGFloat, area: CGRect) -> CGFloat {
+        min(max(current ?? area.midX - width / 2, area.minX + spacing + sideWidth), area.maxX - spacing - sideWidth - width)
     }
 
     private static func rounded(_ rect: CGRect) -> CGRect {

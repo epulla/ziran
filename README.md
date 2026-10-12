@@ -54,6 +54,17 @@ Bookmarks for apps, folders, files and web pages, shown in a box beside the stri
 
 ⌥− saves the window's document when the app reports one (a browser's page, a terminal's working folder, an open file), the folder for a Finder window, and otherwise the app. Finder folders need a one-time permission for Ziran to control Finder.
 
+### Templates
+
+Saved window layouts, shown in a box on the left of the strip and dropdown. A template places each app's window into a half, quarter, or full screen on the display the switcher is on, launching apps that aren't running.
+
+| Key (hold ⌥) | Result |
+| --- | --- |
+| ← in strip/dropdown | Move into templates; ↑↓ move, ↩ or release ⌥ applies, → goes back |
+| = in templates | Save the visible windows on this display as a template, named after their apps |
+| − in templates | Remove the selected template |
+| ⇧1–9 in templates | Apply Nth template |
+
 ### Window shortcuts
 
 Resize the focused window from anywhere. Also listed under menubar icon → Window.
