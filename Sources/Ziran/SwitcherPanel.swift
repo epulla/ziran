@@ -7,6 +7,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private var search: NSTextField?
     private var currentIndex = 0
     private var icons: [pid_t: NSImage] = [:]
+    private var bundleIcons: [String: NSImage] = [:]
     private var launchObserver: NSObjectProtocol?
     // One padding for every panel edge, row inset, and gap between sections, so all views line up.
     private static let gap: CGFloat = 8
@@ -159,7 +160,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             templatesPanel.orderOut(nil)
         } else {
             let quickNavFooter = s.mode == .quickNav ? ["↑↓ move · ← back · − remove", "release ⌥ to open"] : [bookmarkHint].compactMap { $0 }
-            let quickNavItems = s.quickNav.map { (icon: Optional($0.quickNavIcon), name: $0.quickNavName) }
+            let quickNavItems = s.quickNav.map { (leading: iconView($0.quickNavIcon, size: 28 * scale), name: $0.quickNavName) }
             let quickNavBox = sideBox(
                 "Quick nav", items: quickNavItems, selected: s.mode == .quickNav ? s.quickNavRow : nil, badges: true, footer: quickNavFooter,
                 fontSize: fontSize, scale: scale, rowHeight: rowHeight)
@@ -168,7 +169,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                 s.mode == .templates
                 ? ["↑↓ move · → back · = save · − remove", "release ⌥ to apply"] : s.templates.isEmpty ? ["← then = save layout"] : []
             let templatesBox = sideBox(
-                "Templates", items: s.templates.map { (icon: nil, name: $0.name) }, selected: s.mode == .templates ? s.templatesRow : nil,
+                "Templates", items: s.templates.map { (leading: templatePreview($0, scale: scale), name: $0.name) },
+                selected: s.mode == .templates ? s.templatesRow : nil,
                 badges: s.mode == .templates, footer: templatesFooter, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
             showSide(templatesPanel, box: templatesBox, x: frame.minX - Self.quickNavSpacing - quickNavWidth)
         }
@@ -207,6 +209,47 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         guard let icon = NSRunningApplication(processIdentifier: pid)?.icon else { return NSImage() }
         icons[pid] = icon
         return icon
+    }
+
+    private func bundleIcon(_ bundleID: String) -> NSImage {
+        if let cached = bundleIcons[bundleID] { return cached }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return NSImage() }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        bundleIcons[bundleID] = icon
+        return icon
+    }
+
+    private func iconView(_ image: NSImage, size: CGFloat) -> NSImageView {
+        let icon = NSImageView(image: image)
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.widthAnchor.constraint(equalToConstant: size).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: size).isActive = true
+        return icon
+    }
+
+    // A miniature screen with each app's icon drawn in the slot it fills.
+    private func templatePreview(_ template: LayoutTemplate, scale: CGFloat) -> NSView {
+        let screen = CGRect(x: 0, y: 0, width: (48 * scale).rounded(), height: (30 * scale).rounded())
+        let preview = NSView()
+        preview.wantsLayer = true
+        preview.layer?.cornerRadius = 3 * scale
+        preview.layer?.borderWidth = 1
+        preview.layer?.borderColor = NSColor.secondaryLabelColor.cgColor
+        preview.translatesAutoresizingMaskIntoConstraints = false
+        preview.widthAnchor.constraint(equalToConstant: screen.width).isActive = true
+        preview.heightAnchor.constraint(equalToConstant: screen.height).isActive = true
+        for slot in template.slots {
+            let rect = Layout.frame(slot.action, current: .zero, in: screen)
+            let icon = iconView(bundleIcon(slot.bundleID), size: (min(rect.width, rect.height) * 0.8).rounded())
+            preview.addSubview(icon)
+            // Layout frames grow downward like Accessibility; AppKit views grow upward.
+            NSLayoutConstraint.activate([
+                icon.centerXAnchor.constraint(equalTo: preview.leadingAnchor, constant: rect.midX),
+                icon.centerYAnchor.constraint(equalTo: preview.topAnchor, constant: rect.midY),
+            ])
+        }
+        return preview
     }
 
     private func makeSearch(height: CGFloat, width: CGFloat) -> NSTextField {
@@ -327,7 +370,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     private func sideBox(
-        _ heading: String, items: [(icon: NSImage?, name: String)], selected selectedRow: Int?, badges: Bool, footer: [String], fontSize: CGFloat,
+        _ heading: String, items: [(leading: NSView, name: String)], selected selectedRow: Int?, badges: Bool, footer: [String], fontSize: CGFloat,
         scale: CGFloat, rowHeight: CGFloat
     ) -> NSView {
         let width = (Self.quickNavBaseWidth * scale).rounded()
@@ -356,19 +399,13 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                 row.widthAnchor.constraint(equalToConstant: width - 2 * Self.gap), row.heightAnchor.constraint(equalToConstant: rowHeight),
                 label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             ])
-            if let image = item.icon {
-                let icon = NSImageView(image: image)
-                icon.imageScaling = .scaleProportionallyUpOrDown
-                row.addSubview(icon)
-                icon.translatesAutoresizingMaskIntoConstraints = false
-                NSLayoutConstraint.activate([
-                    icon.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap), icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-                    icon.widthAnchor.constraint(equalToConstant: 28 * scale), icon.heightAnchor.constraint(equalToConstant: 28 * scale),
-                    label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: Self.gap),
-                ])
-            } else {
-                label.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap).isActive = true
-            }
+            row.addSubview(item.leading)
+            item.leading.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                item.leading.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap),
+                item.leading.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+                label.leadingAnchor.constraint(equalTo: item.leading.trailingAnchor, constant: Self.gap),
+            ])
             if badges, let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") {
                 row.addSubview(badge)
                 NSLayoutConstraint.activate([
