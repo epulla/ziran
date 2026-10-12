@@ -64,3 +64,18 @@ func layoutFrames(action: Layout.Action, current: CGRect, expected: CGRect) {
 func layoutSnapAction(window: CGRect, expected: Layout.Action) {
     #expect(Layout.snapAction(for: window, in: screen) == expected)
 }
+
+@Test func layoutTemplateSlotsSkipOverlappingWindows() {
+    let windows: [(String, CGRect)] = [
+        ("chrome", CGRect(x: 100, y: 25, width: 600, height: 800)),
+        ("slack", CGRect(x: 700, y: 25, width: 600, height: 800)),
+        ("ghostty", CGRect(x: 100, y: 25, width: 600, height: 800)),
+        ("notes", screen),
+    ]
+
+    #expect(
+        Layout.templateSlots(windows, in: screen) == [
+            LayoutTemplate.Slot(bundleID: "chrome", action: .leftHalf),
+            LayoutTemplate.Slot(bundleID: "slack", action: .rightHalf),
+        ])
+}

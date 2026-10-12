@@ -13,6 +13,23 @@ enum Layout {
         }!
     }
 
+    static func templateSlots(_ windows: [(String, CGRect)], in screen: CGRect) -> [LayoutTemplate.Slot] {
+        var seen = Set<String>()
+        var kept: [(LayoutTemplate.Slot, CGRect)] = []
+        for (bundleID, window) in windows where seen.insert(bundleID).inserted {
+            let action = snapAction(for: window, in: screen)
+            let slot = frame(action, current: .zero, in: screen)
+            guard
+                !kept.contains(where: {
+                    let overlap = $0.1.intersection(slot)
+                    return overlap.width > 0 && overlap.height > 0
+                })
+            else { continue }
+            kept.append((LayoutTemplate.Slot(bundleID: bundleID, action: action), slot))
+        }
+        return kept.map(\.0)
+    }
+
     static func frame(_ action: Action, current: CGRect, in screen: CGRect) -> CGRect {
         let halfWidth = screen.width / 2
         let halfHeight = screen.height / 2
