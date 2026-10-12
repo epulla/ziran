@@ -60,6 +60,10 @@ func layoutFrames(action: Layout.Action, current: CGRect, expected: CGRect) {
     (CGRect(x: 700, y: 25, width: 600, height: 800), Layout.Action.rightHalf),
     (CGRect(x: 100, y: 425, width: 1200, height: 400), Layout.Action.bottomHalf),
     (CGRect(x: 100, y: 25, width: 1200, height: 800), Layout.Action.maximize),
+    (CGRect(x: 100, y: 25, width: 600, height: 400), Layout.Action.topLeft),
+    (CGRect(x: 700, y: 25, width: 600, height: 400), Layout.Action.topRight),
+    (CGRect(x: 100, y: 425, width: 600, height: 400), Layout.Action.bottomLeft),
+    (CGRect(x: 700, y: 425, width: 600, height: 400), Layout.Action.bottomRight),
 ])
 func layoutSnapAction(window: CGRect, expected: Layout.Action) {
     #expect(Layout.snapAction(for: window, in: screen) == expected)

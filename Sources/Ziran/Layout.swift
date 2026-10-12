@@ -7,9 +7,14 @@ enum Layout {
     static func snapAction(for window: CGRect, in screen: CGRect) -> Action {
         let actions: [Action] = [.leftHalf, .rightHalf, .topHalf, .bottomHalf, .topLeft, .topRight, .bottomLeft, .bottomRight, .maximize]
         return actions.max { lhs, rhs in
-            let lhsIntersection = frame(lhs, current: .zero, in: screen).intersection(window)
-            let rhsIntersection = frame(rhs, current: .zero, in: screen).intersection(window)
-            return max(0, lhsIntersection.width * lhsIntersection.height) < max(0, rhsIntersection.width * rhsIntersection.height)
+            func intersectionOverUnion(_ action: Action) -> CGFloat {
+                let candidate = frame(action, current: .zero, in: screen)
+                let intersection = candidate.intersection(window)
+                let intersectionArea = max(0, intersection.width * intersection.height)
+                let unionArea = candidate.width * candidate.height + window.width * window.height - intersectionArea
+                return unionArea > 0 ? intersectionArea / unionArea : 0
+            }
+            return intersectionOverUnion(lhs) < intersectionOverUnion(rhs)
         }!
     }
 
