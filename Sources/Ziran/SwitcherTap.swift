@@ -4,6 +4,7 @@ import CoreGraphics
 @MainActor
 final class SwitcherTap {
     private static let digits: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
+    private static let keypadDigits: [Int64] = [83, 84, 85, 86, 87, 88, 89, 91, 92]
     private static let resizeKeys: [Int64: WindowResizer.Command] = [
         123: .layout(.leftHalf), 124: .layout(.rightHalf), 126: .layout(.topHalf), 125: .layout(.bottomHalf),
         32: .layout(.topLeft), 34: .layout(.topRight), 38: .layout(.bottomLeft), 40: .layout(.bottomRight),
@@ -88,13 +89,13 @@ final class SwitcherTap {
                 return true
             }
             if switcher.mode != .closed && switcher.mode != .list && alternate && flags.contains(.maskShift) && !modifier,
-                let index = Self.digits.firstIndex(of: keycode)
+                let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
                 run(switcher.handle(.openQuickNav(index)))
                 return true
             }
             if switcher.mode != .closed && (flags.contains(.maskCommand) || (switcher.mode != .list && flags.contains(.maskAlternate))),
-                let index = Self.digits.firstIndex(of: keycode)
+                let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
                 run(switcher.handle(.jump(index)))
                 return true
@@ -102,6 +103,11 @@ final class SwitcherTap {
             // Plain W must stay typeable in the search field, so the list uses ⌘W.
             if keycode == 13 && switcher.mode != .closed && (switcher.mode == .list ? flags.contains(.maskCommand) : alternate && !modifier) {
                 run(switcher.handle(.closeWindow))
+                return true
+            }
+            // Plain = must stay typeable too, so the list pins with ⌘=.
+            if keycode == 24 && switcher.mode == .list && flags.contains(.maskCommand) {
+                if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
                 return true
             }
             guard switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav else { return false }
@@ -188,9 +194,9 @@ final class SwitcherTap {
         guard let url = bookmarkURL(for: window, askFinder: false) else {
             guard window.bundleId == "com.apple.finder" else { return nil }
             let saved = Settings.quickNav.contains { $0.hasDirectoryPath && FileManager.default.displayName(atPath: $0.path) == window.title }
-            return "⌥− \(saved ? "removes" : "adds") folder \(window.title)"
+            return "− \(saved ? "remove" : "bookmark") (\(window.title) (folder))"
         }
-        return "⌥− \(Settings.quickNav.contains(url) ? "removes" : "adds") \(url.quickNavName)"
+        return "− \(Settings.quickNav.contains(url) ? "remove" : "bookmark") (\(url.quickNavName))"
     }
 
     private func bookmarkURL(for window: WindowInfo, askFinder: Bool) -> URL? {

@@ -2,6 +2,8 @@
 
 Keyboard-first window switcher for macOS (menubar app, macOS 14+).
 
+Every action has a keyboard shortcut, and each view shows the keys that work in it. Mouse support is optional.
+
 ## Install
 
 Download `Ziran-X.Y.Z.zip` from [Releases](https://github.com/epulla/ziran/releases), unzip, move `Ziran.app` to Applications, and open it with right-click → Open (the app is ad-hoc signed).
@@ -28,17 +30,29 @@ remove and re-add Ziran in Accessibility settings.
 | ↑ | Open filterable list of all windows |
 | Release ⌥ or press ↩ | Switch to selected item |
 | Esc | Close switcher |
-| = | Pin or unpin selected window in strip or dropdown |
+| = (hold ⌥) in strip/dropdown; ⌘= in list/search | Pin or unpin selected window |
 | W (hold ⌥) in dropdown; ⌘W in list/search | Close selected window |
 | W (hold ⌥) in strip | Close all windows of selected app |
 | Q (hold ⌥) in strip | Quit selected app |
-| 1–9 (hold ⌥) in strip/dropdown; ⌘1–9 in list/search | Jump straight to Nth item |
+| 1–9 (hold ⌥) in strip/dropdown; ⌘1–9 in list/search | Jump straight to Nth item (number row or keypad) |
 | Hover | Select item |
 | Click | Switch to item |
 | Scroll | Move selection |
 | Pin icon | Pin item |
 
 Pins last until Ziran quits and sort first in the dropdown and list.
+
+### Quick nav
+
+Bookmarks for apps, folders, files and web pages, shown in a box beside the strip and dropdown. Running apps come forward, quit apps launch, files open in their app, and pages open in your browser. Bookmarks whose file or app no longer exists are removed.
+
+| Key (hold ⌥) | Result |
+| --- | --- |
+| − in strip/dropdown | Bookmark the selected window, or remove it if saved; the box names what gets saved |
+| ⇧1–9 | Open Nth bookmark |
+| → in strip/dropdown | Move into quick nav; ↑↓ move, ↩ or release ⌥ opens, − removes, ← goes back |
+
+⌥− saves the window's document when the app reports one (a browser's page, a terminal's working folder, an open file), the folder for a Finder window, and otherwise the app. Finder folders need a one-time permission for Ziran to control Finder.
 
 ### Window shortcuts
 
@@ -62,6 +76,7 @@ Open menubar icon → Preferences… (⌘,).
 - Icon size: 48–160 pt for strip tiles
 - Launch at login
 - Window resize shortcuts on/off
+- Quick Nav tab: add files, folders, apps (⌘O) or web addresses (⌘L), reorder (⌘↑/⌘↓), and remove (⌫) bookmarks
 
 ## Development
 

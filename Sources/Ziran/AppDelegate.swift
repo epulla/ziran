@@ -100,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showAbout() {
-        preferences.show(1)
+        preferences.show(2)
     }
 }
 
