@@ -10,6 +10,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private var launchObserver: NSObjectProtocol?
     // One padding for every panel edge, row inset, and gap between sections, so all views line up.
     private static let gap: CGFloat = 8
+    private static let quickNavSpacing: CGFloat = 12
+    private static let quickNavBaseWidth: CGFloat = 260
     private let quickNavPanel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
 
     init(onKey: @escaping (Switcher.Key) -> Void) {
@@ -67,7 +69,9 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         let root = NSStackView()
         root.orientation = .vertical; root.alignment = .leading; root.spacing = 2
         root.edgeInsets = NSEdgeInsets(top: Self.gap, left: Self.gap, bottom: Self.gap, right: Self.gap)
-        let listWidth = min((600 * scale).rounded(), (NSScreen.main?.visibleFrame.width ?? 800) - 40)
+        let area = (wasVisible ? screen : nil)?.visibleFrame ?? NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        let quickNavWidth = (Self.quickNavBaseWidth * scale).rounded()
+        let listWidth = min((600 * scale).rounded(), area.width - 40)
         var contentWidth = listWidth
         if s.mode == .list {
             let field = search ?? makeSearch(height: (32 * scale).rounded(), width: listWidth - 2 * Self.gap)
@@ -100,7 +104,9 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             search = nil
             // Quick nav keeps showing the strip or dropdown it was entered from.
             let mode = s.mode == .quickNav ? s.quickNavReturn : s.mode
-            let stripView = strip(s, mode: mode, fontSize: fontSize, scale: scale, maxWidth: listWidth - 2 * Self.gap)
+            let stripView = strip(
+                s, mode: mode, fontSize: fontSize, scale: scale, maxWidth: listWidth - 2 * Self.gap,
+                iconsWidth: area.width - Self.quickNavSpacing - quickNavWidth - 2 * Self.gap)
             let stripWidth = stripView.fittingSize.width
             contentWidth = max(mode == .dropdown ? listWidth : 0, stripWidth + 2 * Self.gap)
             stripView.widthAnchor.constraint(equalToConstant: contentWidth - 2 * Self.gap).isActive = true
@@ -137,11 +143,12 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             root.widthAnchor.constraint(equalToConstant: contentWidth),
         ])
         setContentSize(root.fittingSize)
+        let x = Layout.panelX(
+            current: wasVisible ? oldTopLeft.x : nil, width: frame.width, quickNavWidth: quickNavWidth, spacing: Self.quickNavSpacing, area: area)
         if wasVisible {
-            setFrameTopLeftPoint(oldTopLeft)
-        } else if let screen = NSScreen.main {
-            let area = screen.visibleFrame
-            setFrameOrigin(NSPoint(x: area.midX - frame.width / 2, y: area.midY - frame.height / 2))
+            setFrameTopLeftPoint(NSPoint(x: x, y: oldTopLeft.y))
+        } else {
+            setFrameOrigin(NSPoint(x: x, y: area.midY - frame.height / 2))
         }
         orderFrontRegardless()
         showQuickNav(s, bookmarkHint: bookmarkHint, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
@@ -173,11 +180,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             box.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -Self.gap),
         ])
         quickNavPanel.setContentSize(effect.fittingSize)
-        let spacing: CGFloat = 12
-        let width = quickNavPanel.frame.width
-        let area = (screen ?? NSScreen.main)?.visibleFrame ?? .infinite
-        let x = frame.maxX + spacing + width <= area.maxX ? frame.maxX + spacing : frame.minX - spacing - width
-        quickNavPanel.setFrameTopLeftPoint(NSPoint(x: x, y: frame.maxY))
+        quickNavPanel.setFrameTopLeftPoint(NSPoint(x: frame.maxX + Self.quickNavSpacing, y: frame.maxY))
         quickNavPanel.orderFrontRegardless()
     }
 
@@ -199,17 +202,27 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return field
     }
 
-    private func strip(_ s: Switcher, mode: Switcher.Mode, fontSize: CGFloat, scale: CGFloat, maxWidth: CGFloat) -> NSView {
+    private func strip(_ s: Switcher, mode: Switcher.Mode, fontSize: CGFloat, scale: CGFloat, maxWidth: CGFloat, iconsWidth: CGFloat) -> NSView {
         let box = NSStackView()
         box.orientation = .vertical
         box.alignment = .centerX
         box.spacing = Self.gap
+        let iconSpacing = (Self.gap * scale).rounded()
         let icons = NSStackView()
-        icons.spacing = (Self.gap * scale).rounded()
-        // Without this the stack can stretch to the dropdown width on re-render and pin the icon left.
-        icons.setHuggingPriority(.required, for: .horizontal)
+        icons.orientation = .vertical
+        icons.alignment = .centerX
+        icons.spacing = iconSpacing
         let size = Settings.iconSize
+        let columns = Layout.stripColumns(count: s.apps.count, tile: size, spacing: iconSpacing, available: iconsWidth)
+        var iconRow = NSStackView()
         for (index, pid) in s.apps.enumerated() {
+            if index % columns == 0 {
+                iconRow = NSStackView()
+                iconRow.spacing = iconSpacing
+                // Without this the stack can stretch to the dropdown width on re-render and pin the icon left.
+                iconRow.setHuggingPriority(.required, for: .horizontal)
+                icons.addArrangedSubview(iconRow)
+            }
             let tile: NSView = mode == .strip ? RowView(index: index, onKey: onKey) : NSView()
             tile.wantsLayer = true
             tile.layer?.cornerRadius = size * 0.16
@@ -229,7 +242,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                     badge.bottomAnchor.constraint(equalTo: tile.bottomAnchor, constant: -(size * 0.08).rounded()),
                 ])
             }
-            icons.addArrangedSubview(tile)
+            iconRow.addArrangedSubview(tile)
         }
         box.addArrangedSubview(icons)
         let app = s.apps.indices.contains(s.appIndex) ? NSRunningApplication(processIdentifier: s.apps[s.appIndex])?.localizedName ?? "" : ""
@@ -297,7 +310,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     private func quickNavBox(_ s: Switcher, bookmarkHint: String?, fontSize: CGFloat, scale: CGFloat, rowHeight: CGFloat) -> NSView {
-        let width = (260 * scale).rounded()
+        let width = (Self.quickNavBaseWidth * scale).rounded()
         let box = NSStackView()
         box.orientation = .vertical; box.alignment = .leading; box.spacing = 2
         let title = NSTextField(labelWithString: "Quick nav")
@@ -350,8 +363,9 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     private func badge(_ index: Int, size: CGFloat, selected: Bool, prefix: String = "") -> NSView? {
-        guard index < 9 else { return nil }
-        let label = NSTextField(labelWithString: "\(prefix)\(index + 1)")
+        // Letters only apply to plain ⌥ shortcuts; ⌘ (search) and ⇧ (quick nav) stay 1–9.
+        guard index < (prefix.isEmpty ? Switcher.shortcutLabels.count : 9) else { return nil }
+        let label = NSTextField(labelWithString: prefix + Switcher.shortcutLabels[index])
         label.font = .monospacedDigitSystemFont(ofSize: size, weight: .medium)
         label.textColor = selected ? .white : .secondaryLabelColor
         label.translatesAutoresizingMaskIntoConstraints = false

@@ -11,6 +11,22 @@ private let fixture = [
     WindowInfo(id: 5, pid: 3, bundleId: "c", appName: "Gamma", title: "Four", isMinimized: false),
 ]
 
+@Test(arguments: [(0, "1"), (8, "9"), (9, "A"), (25, "R"), (32, "Z")])
+func switcherShortcutLabels(index: Int, expected: String) {
+    #expect(Switcher.shortcutLabels.count == 33)
+    #expect(Switcher.shortcutLabels[index] == expected)
+}
+
+@Test func switcherJumpAppBeyondShortcutRange() {
+    let windows = (1...13).map { index in
+        WindowInfo(id: UInt32(index), pid: pid_t(index), bundleId: "app\(index)", appName: "App\(index)", title: "Window", isMinimized: false)
+    }
+    var switcher = Switcher()
+    _ = switcher.open(windows)
+    #expect(switcher.mode == .strip)
+    #expect(switcher.handle(.jump(12)) == .focus(windows[12]))
+}
+
 @Test(arguments: [
     ([Switcher.Key.optionUp], Switcher.Effect.focus(fixture[2]), Switcher.Mode.closed),
     ([.tab, .optionUp], .focus(fixture[4]), .closed),

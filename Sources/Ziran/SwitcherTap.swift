@@ -5,6 +5,8 @@ import CoreGraphics
 final class SwitcherTap {
     private static let digits: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
     private static let keypadDigits: [Int64] = [83, 84, 85, 86, 87, 88, 89, 91, 92]
+    // ANSI keycodes for A–Z without Q and W, in Switcher.shortcutLabels order.
+    private static let letters: [Int64] = [0, 11, 8, 2, 14, 3, 5, 4, 34, 38, 40, 37, 46, 45, 31, 35, 15, 1, 17, 32, 9, 7, 16, 6]
     private static let resizeKeys: [Int64: WindowResizer.Command] = [
         123: .layout(.leftHalf), 124: .layout(.rightHalf), 126: .layout(.topHalf), 125: .layout(.bottomHalf),
         32: .layout(.topLeft), 34: .layout(.topRight), 38: .layout(.bottomLeft), 40: .layout(.bottomRight),
@@ -98,6 +100,12 @@ final class SwitcherTap {
                 let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
                 run(switcher.handle(.jump(index)))
+                return true
+            }
+            if (switcher.mode == .strip || switcher.mode == .dropdown) && alternate && !modifier && !flags.contains(.maskShift),
+                let index = Self.letters.firstIndex(of: keycode)
+            {
+                run(switcher.handle(.jump(Self.digits.count + index)))
                 return true
             }
             // Plain W must stay typeable in the search field, so the list uses ⌘W.
