@@ -194,9 +194,9 @@ final class SwitcherTap {
         guard let url = bookmarkURL(for: window, askFinder: false) else {
             guard window.bundleId == "com.apple.finder" else { return nil }
             let saved = Settings.quickNav.contains { $0.hasDirectoryPath && FileManager.default.displayName(atPath: $0.path) == window.title }
-            return "− \(saved ? "remove" : "bookmark") (\(window.title) (folder))"
+            return "− \(saved ? "remove" : "bookmark") · \(window.title) (folder)"
         }
-        return "− \(Settings.quickNav.contains(url) ? "remove" : "bookmark") (\(url.quickNavName))"
+        return "− \(Settings.quickNav.contains(url) ? "remove" : "bookmark") · \(url.quickNavName)"
     }
 
     private func bookmarkURL(for window: WindowInfo, askFinder: Bool) -> URL? {
