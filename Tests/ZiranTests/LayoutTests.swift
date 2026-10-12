@@ -7,7 +7,7 @@ private let loose = CGRect(x: 300, y: 100, width: 300, height: 200)
 
 @Test(arguments: [
     (3, CGFloat(96), CGFloat(8), CGFloat(992), 3),
-    (33, CGFloat(96), CGFloat(8), CGFloat(992), 9),
+    (33, CGFloat(96), CGFloat(8), CGFloat(992), 7),
     (33, CGFloat(160), CGFloat(8), CGFloat(992), 5),
     (5, CGFloat(96), CGFloat(8), CGFloat(50), 1),
 ])
@@ -16,7 +16,7 @@ func layoutStripColumns(count: Int, tile: CGFloat, spacing: CGFloat, available: 
 }
 
 @Test(arguments: [
-    (CGFloat?.none, CGFloat(400), CGRect(x: 0, y: 0, width: 1440, height: 900), CGFloat(384)),
+    (CGFloat?.none, CGFloat(400), CGRect(x: 0, y: 0, width: 1440, height: 900), CGFloat(520)),
     (nil, 600, CGRect(x: 0, y: 0, width: 800, height: 900), -72),
     (CGFloat?(500), 600, CGRect(x: 0, y: 0, width: 1440, height: 900), 500),
     (CGFloat?(700), 600, CGRect(x: 0, y: 0, width: 1440, height: 900), 568),

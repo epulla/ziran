@@ -106,7 +106,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             let mode = s.mode == .quickNav ? s.quickNavReturn : s.mode
             let stripView = strip(
                 s, mode: mode, fontSize: fontSize, scale: scale, maxWidth: listWidth - 2 * Self.gap,
-                iconsWidth: area.width - Self.quickNavSpacing - quickNavWidth - 2 * Self.gap)
+                // burnedout: assumed the future left box matches quick nav width, so reserve that space on both sides.
+                iconsWidth: area.width - 2 * (Self.quickNavSpacing + quickNavWidth) - 2 * Self.gap)
             let stripWidth = stripView.fittingSize.width
             contentWidth = max(mode == .dropdown ? listWidth : 0, stripWidth + 2 * Self.gap)
             stripView.widthAnchor.constraint(equalToConstant: contentWidth - 2 * Self.gap).isActive = true

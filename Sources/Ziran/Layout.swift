@@ -43,13 +43,12 @@ enum Layout {
     }
 
     static func stripColumns(count: Int, tile: CGFloat, spacing: CGFloat, available: CGFloat) -> Int {
-        max(1, min(9, count, Int((available + spacing) / (tile + spacing))))
+        max(1, min(7, count, Int((available + spacing) / (tile + spacing))))
     }
 
-    // Centers the panel and quick nav as one group, sliding left so quick nav always fits on the right.
+    // Centers the panel, sliding left only when quick nav would not fit on the right.
     static func panelX(current: CGFloat?, width: CGFloat, quickNavWidth: CGFloat, spacing: CGFloat, area: CGRect) -> CGFloat {
-        let group = width + spacing + quickNavWidth
-        return min(current ?? area.midX - group / 2, area.maxX - group)
+        min(current ?? area.midX - width / 2, area.maxX - spacing - quickNavWidth - width)
     }
 
     private static func rounded(_ rect: CGRect) -> CGRect {
