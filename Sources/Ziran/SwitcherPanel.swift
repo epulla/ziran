@@ -162,7 +162,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             let quickNavFooter = s.mode == .quickNav ? ["↑↓ move · ← back · − remove", "release ⌥ to open"] : [bookmarkHint].compactMap { $0 }
             let quickNavItems = s.quickNav.map { (leading: iconView($0.quickNavIcon, size: 28 * scale), name: $0.quickNavName) }
             let quickNavBox = sideBox(
-                "Quick nav", items: quickNavItems, selected: s.mode == .quickNav ? s.quickNavRow : nil, badges: true, footer: quickNavFooter,
+                "Quick nav", items: quickNavItems, selected: s.mode == .quickNav ? s.quickNavRow : nil, click: Switcher.Key.openQuickNav, badges: true,
+                footer: quickNavFooter,
                 fontSize: fontSize, scale: scale, rowHeight: rowHeight)
             showSide(quickNavPanel, box: quickNavBox, x: frame.maxX + Self.quickNavSpacing)
             let templatesFooter =
@@ -171,7 +172,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             let templatesBox = sideBox(
                 "Templates", items: s.templates.map { (leading: templatePreview($0, scale: scale), name: $0.name) },
                 selected: s.mode == .templates ? s.templatesRow : nil,
-                badges: s.mode == .templates, footer: templatesFooter, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
+                click: Switcher.Key.applyTemplate, badges: s.mode == .templates, footer: templatesFooter, fontSize: fontSize, scale: scale, rowHeight: rowHeight
+            )
             showSide(templatesPanel, box: templatesBox, x: frame.minX - Self.quickNavSpacing - quickNavWidth)
         }
         if s.mode == .list {
@@ -370,7 +372,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     private func sideBox(
-        _ heading: String, items: [(leading: NSView, name: String)], selected selectedRow: Int?, badges: Bool, footer: [String], fontSize: CGFloat,
+        _ heading: String, items: [(leading: NSView, name: String)], selected selectedRow: Int?, click: (Int) -> Switcher.Key, badges: Bool, footer: [String],
+        fontSize: CGFloat,
         scale: CGFloat, rowHeight: CGFloat
     ) -> NSView {
         let width = (Self.quickNavBaseWidth * scale).rounded()
@@ -385,7 +388,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         box.setCustomSpacing(Self.gap, after: title)
         for (index, item) in items.enumerated() {
             let selected = index == selectedRow
-            let row = NSView()
+            let row = RowView(index: index, onKey: onKey, click: [click(index)])
             row.wantsLayer = true
             row.layer?.cornerRadius = 8 * scale
             row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
@@ -518,10 +521,12 @@ private final class PanelContentView: NSVisualEffectView {
 private final class RowView: NSView {
     let index: Int
     let onKey: (Switcher.Key) -> Void
+    let click: [Switcher.Key]
 
-    init(index: Int, onKey: @escaping (Switcher.Key) -> Void) {
+    init(index: Int, onKey: @escaping (Switcher.Key) -> Void, click: [Switcher.Key]? = nil) {
         self.index = index
         self.onKey = onKey
+        self.click = click ?? [.select(index), .enter]
         super.init(frame: .zero)
     }
 
@@ -529,7 +534,7 @@ private final class RowView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseDown(with event: NSEvent) { onKey(.select(index)); onKey(.enter) }
+    override func mouseDown(with event: NSEvent) { click.forEach(onKey) }
 }
 
 @MainActor
