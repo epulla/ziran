@@ -231,6 +231,7 @@ final class SwitcherTap {
         panel.hide()
         Task { @MainActor [weak self] in
             guard let self else { return }
+            var placed: [AXUIElement] = []
             for slot in template.slots {
                 let deadline = Date().addingTimeInterval(5)
                 var app = NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == slot.bundleID }
@@ -249,10 +250,15 @@ final class SwitcherTap {
                         let element = tracker.element(window.id)
                     {
                         AX.setFrame(element, Layout.frame(slot.action, current: .zero, in: display))
+                        placed.append(element)
                         break
                     }
                     try? await Task.sleep(for: .milliseconds(min(100, max(1, Int(deadline.timeIntervalSinceNow * 1000)))))
                 }
+            }
+            for element in placed.reversed() {
+                AX.focus(element)
+                tracker.touch(element)
             }
         }
     }
