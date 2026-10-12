@@ -23,6 +23,15 @@ enum Settings {
         set { defaults.set(newValue, forKey: "windowShortcuts") }
     }
 
+    static var quickNav: [URL] {
+        get {
+            (defaults.stringArray(forKey: "quickNav") ?? []).compactMap(URL.init(string:)).filter {
+                !$0.isFileURL || FileManager.default.fileExists(atPath: $0.path)
+            }
+        }
+        set { defaults.set(newValue.map(\.absoluteString), forKey: "quickNav") }
+    }
+
     private static func value(_ key: String, default fallback: Double, range: ClosedRange<Double>) -> Double {
         let value = defaults.double(forKey: key)
         return value == 0 ? fallback : min(max(value, range.lowerBound), range.upperBound)

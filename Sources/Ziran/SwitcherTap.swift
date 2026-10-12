@@ -4,6 +4,7 @@ import CoreGraphics
 @MainActor
 final class SwitcherTap {
     private static let digits: [Int64] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
+    private static let keypadDigits: [Int64] = [83, 84, 85, 86, 87, 88, 89, 91, 92]
     private static let resizeKeys: [Int64: WindowResizer.Command] = [
         123: .layout(.leftHalf), 124: .layout(.rightHalf), 126: .layout(.topHalf), 125: .layout(.bottomHalf),
         32: .layout(.topLeft), 34: .layout(.topRight), 38: .layout(.bottomLeft), 40: .layout(.bottomRight),
@@ -70,7 +71,7 @@ final class SwitcherTap {
                     previousApp = NSWorkspace.shared.frontmostApplication
                     if let pid = previousApp?.processIdentifier {
                         if let focused = AX.focusedWindow() { tracker.touch(focused) }
-                        run(switcher.open(tracker.snapshot(), app: pid))
+                        run(switcher.open(tracker.snapshot(), app: pid, quickNav: Settings.quickNav))
                     }
                 } else {
                     run(switcher.handle(flags.contains(.maskShift) ? .previousWindow : .nextWindow))
@@ -81,14 +82,20 @@ final class SwitcherTap {
                 if switcher.mode == .closed {
                     previousApp = NSWorkspace.shared.frontmostApplication
                     if let focused = AX.focusedWindow() { tracker.touch(focused) }
-                    run(switcher.open(tracker.snapshot()))
+                    run(switcher.open(tracker.snapshot(), quickNav: Settings.quickNav))
                 } else if switcher.mode == .strip || switcher.mode == .dropdown {
                     run(switcher.handle(flags.contains(.maskShift) ? .shiftTab : .tab))
                 }
                 return true
             }
+            if switcher.mode != .closed && switcher.mode != .list && alternate && flags.contains(.maskShift) && !modifier,
+                let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
+            {
+                run(switcher.handle(.openQuickNav(index)))
+                return true
+            }
             if switcher.mode != .closed && (flags.contains(.maskCommand) || (switcher.mode != .list && flags.contains(.maskAlternate))),
-                let index = Self.digits.firstIndex(of: keycode)
+                let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
                 run(switcher.handle(.jump(index)))
                 return true
@@ -98,11 +105,19 @@ final class SwitcherTap {
                 run(switcher.handle(.closeWindow))
                 return true
             }
-            guard switcher.mode == .strip || switcher.mode == .dropdown else { return false }
+            // Plain = must stay typeable too, so the list pins with ⌘=.
+            if keycode == 24 && switcher.mode == .list && flags.contains(.maskCommand) {
+                if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
+                return true
+            }
+            guard switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav else { return false }
             let key: Switcher.Key?
             switch keycode {
             case 126: key = .up
             case 125: key = .down
+            case 124: key = .right
+            case 123: key = .left
+            case 27 where !modifier: key = .bookmark
             case 36: key = .enter
             case 53: key = .escape
             case 12 where !modifier: key = .quitApp
@@ -112,7 +127,9 @@ final class SwitcherTap {
             default: key = nil
             }
             if let key { run(switcher.handle(key)); return true }
-        } else if type == .flagsChanged && !flags.contains(.maskAlternate) && (switcher.mode == .strip || switcher.mode == .dropdown) {
+        } else if type == .flagsChanged && !flags.contains(.maskAlternate)
+            && (switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav)
+        {
             run(switcher.handle(.optionUp))
             return true
         }
@@ -121,7 +138,7 @@ final class SwitcherTap {
 
     private func run(_ effect: Switcher.Effect) {
         switch effect {
-        case .update: panel.show(switcher)
+        case .update: panel.show(switcher, bookmarkHint: bookmarkHint())
         case .focus(let window):
             stopClosePoll()
             panel.hide()
@@ -147,8 +164,66 @@ final class SwitcherTap {
             let wasKey = panel.isKeyWindow
             panel.hide()
             if wasKey { previousApp?.activate(options: []) }
+        case .open(let url):
+            stopClosePoll()
+            panel.hide()
+            NSWorkspace.shared.open(url)
+        case .toggleBookmark(let window):
+            // Finder lookup runs AppleScript (and its first-use permission prompt); doing that inside the event tap callback gets the tap disabled.
+            Task { [weak self] in
+                guard let self else { return }
+                guard let url = bookmarkURL(for: window, askFinder: true) else {
+                    NSSound.beep()
+                    return
+                }
+                var urls = Settings.quickNav
+                if let index = urls.firstIndex(of: url) { urls.remove(at: index) } else { urls.append(url) }
+                Settings.quickNav = urls
+                run(switcher.handle(.quickNavChanged(Settings.quickNav)))
+            }
+        case .removeBookmark(let url):
+            Settings.quickNav.removeAll { $0 == url }
+            run(switcher.handle(.quickNavChanged(Settings.quickNav)))
         case .none: break
         }
+    }
+
+    // Tells the user what ⌥− will save before they press it; Finder is named from the title to avoid running AppleScript on every redraw.
+    private func bookmarkHint() -> String? {
+        guard switcher.mode == .strip || switcher.mode == .dropdown, let window = switcher.selection else { return nil }
+        guard let url = bookmarkURL(for: window, askFinder: false) else {
+            guard window.bundleId == "com.apple.finder" else { return nil }
+            let saved = Settings.quickNav.contains { $0.hasDirectoryPath && FileManager.default.displayName(atPath: $0.path) == window.title }
+            return "− \(saved ? "remove" : "bookmark") (\(window.title) (folder))"
+        }
+        return "− \(Settings.quickNav.contains(url) ? "remove" : "bookmark") (\(url.quickNavName))"
+    }
+
+    private func bookmarkURL(for window: WindowInfo, askFinder: Bool) -> URL? {
+        if let element = tracker.element(window.id), let document = AX.document(element) { return document }
+        if window.bundleId == "com.apple.finder" { return askFinder ? finderFolder(titled: window.title) : nil }
+        return NSRunningApplication(processIdentifier: window.pid)?.bundleURL
+    }
+
+    // Finder exposes no folder through Accessibility, so ask it over AppleScript and match the window by title.
+    private func finderFolder(titled title: String) -> URL? {
+        let source = """
+            tell application "Finder"
+                set output to ""
+                repeat with finderWindow in Finder windows
+                    try
+                        set output to output & (name of finderWindow) & tab & (POSIX path of (target of finderWindow as alias)) & linefeed
+                    end try
+                end repeat
+                return output
+            end tell
+            """
+        guard let output = NSAppleScript(source: source)?.executeAndReturnError(nil).stringValue else { return nil }
+        let paths = output.split(separator: "\n").compactMap { line -> String? in
+            let parts = line.split(separator: "\t", maxSplits: 1)
+            return parts.count == 2 && parts[0] == title ? String(parts[1]) : nil
+        }
+        return paths.count == 1 ? URL(fileURLWithPath: paths[0]) : nil
     }
 
     private func startClosePoll(checks: Int, _ check: @escaping @MainActor () -> Void) {

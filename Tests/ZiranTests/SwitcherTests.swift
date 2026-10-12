@@ -1,4 +1,5 @@
 import Darwin
+import Foundation
 import Testing
 @testable import Ziran
 
@@ -243,4 +244,44 @@ func switcherQuitAppOnlyWorksInStrip(app: pid_t?) {
     if app == nil { _ = switcher.handle(.up) }
     #expect(switcher.handle(.quitApp) == .none)
     #expect(switcher.windows.count == (app == nil ? fixture.count : 2))
+}
+
+private let bookmarks = [URL(string: "https://example.com")!, URL(fileURLWithPath: "/Applications")]
+
+@Test(arguments: [
+    ([Switcher.Key.right, .optionUp], Switcher.Effect.open(bookmarks[0]), Switcher.Mode.closed),
+    ([.right, .down, .enter], .open(bookmarks[1]), .closed),
+    ([.right, .down, .down, .up, .optionUp], .open(bookmarks[0]), .closed),
+    ([.right, .left], .update, .strip),
+    ([.down, .right, .left], .update, .dropdown),
+    ([.right, .bookmark], .removeBookmark(bookmarks[0]), .quickNav),
+    ([.right, .escape], .close, .closed),
+    ([.openQuickNav(1)], .open(bookmarks[1]), .closed),
+    ([.right, .openQuickNav(0)], .open(bookmarks[0]), .closed),
+    ([.openQuickNav(5)], .none, .strip),
+    ([.up, .openQuickNav(0)], .none, .list),
+    ([.up, .right], .none, .list),
+    ([.bookmark], .toggleBookmark(fixture[2]), .strip),
+    ([.down, .bookmark], .toggleBookmark(fixture[2]), .dropdown),
+])
+func switcherQuickNav(keys: [Switcher.Key], expected: Switcher.Effect, mode: Switcher.Mode) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, quickNav: bookmarks)
+    var effect = Switcher.Effect.update
+    for key in keys { effect = switcher.handle(key) }
+    #expect(effect == expected)
+    #expect(switcher.mode == mode)
+}
+
+@Test func switcherQuickNavFollowsBookmarkChanges() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    #expect(switcher.handle(.right) == .none)
+    #expect(switcher.handle(.quickNavChanged(bookmarks)) == .update)
+    #expect(switcher.handle(.right) == .update)
+    _ = switcher.handle(.down)
+    #expect(switcher.handle(.quickNavChanged([bookmarks[0]])) == .update)
+    #expect(switcher.quickNavRow == 0)
+    #expect(switcher.handle(.quickNavChanged([])) == .update)
+    #expect(switcher.mode == .strip)
 }

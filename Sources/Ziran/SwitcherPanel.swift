@@ -8,6 +8,9 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private var currentIndex = 0
     private var icons: [pid_t: NSImage] = [:]
     private var launchObserver: NSObjectProtocol?
+    // One padding for every panel edge, row inset, and gap between sections, so all views line up.
+    private static let gap: CGFloat = 8
+    private let quickNavPanel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
 
     init(onKey: @escaping (Switcher.Key) -> Void) {
         self.onKey = onKey
@@ -25,6 +28,19 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         visualEffect.layer?.cornerRadius = 14
         visualEffect.layer?.masksToBounds = true
         contentView = visualEffect
+        quickNavPanel.level = .popUpMenu
+        quickNavPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        quickNavPanel.backgroundColor = .clear
+        quickNavPanel.isOpaque = false
+        quickNavPanel.hasShadow = true
+        let quickNavEffect = NSVisualEffectView()
+        quickNavEffect.material = .hudWindow
+        quickNavEffect.blendingMode = .behindWindow
+        quickNavEffect.state = .active
+        quickNavEffect.wantsLayer = true
+        quickNavEffect.layer?.cornerRadius = 14
+        quickNavEffect.layer?.masksToBounds = true
+        quickNavPanel.contentView = quickNavEffect
         // A cold icon load can take ~70 ms, so load icons up front instead of on the first open.
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular { _ = appIcon(app.processIdentifier) }
         launchObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -40,7 +56,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
 
     override var canBecomeKey: Bool { true }
 
-    func show(_ s: Switcher) {
+    func show(_ s: Switcher, bookmarkHint: String?) {
         let fontSize = Settings.fontSize
         let scale = fontSize / 14
         let rowHeight = (40 * scale).rounded()
@@ -50,50 +66,64 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         visualEffect.currentIndex = currentIndex
         let root = NSStackView()
         root.orientation = .vertical; root.alignment = .leading; root.spacing = 2
-        root.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        root.edgeInsets = NSEdgeInsets(top: Self.gap, left: Self.gap, bottom: Self.gap, right: Self.gap)
         let listWidth = min((600 * scale).rounded(), (NSScreen.main?.visibleFrame.width ?? 800) - 40)
         var contentWidth = listWidth
         if s.mode == .list {
-            let field = search ?? makeSearch(height: (32 * scale).rounded(), width: listWidth - 16)
+            let field = search ?? makeSearch(height: (32 * scale).rounded(), width: listWidth - 2 * Self.gap)
             field.font = .systemFont(ofSize: fontSize); field.stringValue = s.query
             root.addArrangedSubview(field)
-            root.addArrangedSubview(hint("↩ switch · ⌘1-9 jump · ⌘W close window · esc close · click pin to pin", size: 11 * scale, width: listWidth - 16))
+            root.setCustomSpacing(Self.gap, after: field)
+            for line in ["↑↓ move · ↩ switch · esc close", "⌘= pin · ⌘W close window"] {
+                let searchHint = hint(line, size: 11 * scale, width: listWidth - 2 * Self.gap)
+                searchHint.alignment = .center
+                root.addArrangedSubview(searchHint)
+                root.setCustomSpacing(Self.gap, after: searchHint)
+            }
             if s.list.isEmpty {
-                root.addArrangedSubview(empty(size: rowHeight, width: listWidth - 16))
+                root.addArrangedSubview(empty(size: rowHeight, width: listWidth - 2 * Self.gap))
             } else {
                 let start = max(0, s.row - 11)
                 for (index, window) in s.list.enumerated().dropFirst(start).prefix(12) {
                     root.addArrangedSubview(
                         row(
                             window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale,
-                            width: listWidth - 16, height: rowHeight, mode: s.mode))
+                            width: listWidth - 2 * Self.gap, height: rowHeight, mode: s.mode))
                     if index == leadingPinnedCount(s.list, pins: s.pins) - 1 && index + 1 < s.list.count {
                         let line = NSBox(); line.boxType = .separator
-                        line.widthAnchor.constraint(equalToConstant: listWidth - 16).isActive = true
+                        line.widthAnchor.constraint(equalToConstant: listWidth - 2 * Self.gap).isActive = true
                         root.addArrangedSubview(line)
                     }
                 }
             }
         } else {
             search = nil
-            let stripView = strip(s, fontSize: fontSize, scale: scale)
+            // Quick nav keeps showing the strip or dropdown it was entered from.
+            let mode = s.mode == .quickNav ? s.quickNavReturn : s.mode
+            let stripView = strip(s, mode: mode, fontSize: fontSize, scale: scale)
             let stripWidth = stripView.fittingSize.width
-            contentWidth = s.mode == .dropdown ? max(listWidth, stripWidth) : stripWidth
-            stripView.widthAnchor.constraint(equalToConstant: contentWidth - 16).isActive = true
+            contentWidth = max(mode == .dropdown ? listWidth : 0, stripWidth + 2 * Self.gap)
+            stripView.widthAnchor.constraint(equalToConstant: contentWidth - 2 * Self.gap).isActive = true
             root.addArrangedSubview(stripView)
-            if s.mode == .dropdown {
+            root.setCustomSpacing(Self.gap, after: stripView)
+            if mode == .dropdown {
                 for (index, window) in s.dropdown.enumerated() {
                     root.addArrangedSubview(
                         row(
                             window, index: index, selected: index == s.row, pinned: s.pins.contains(window.id), fontSize: fontSize, scale: scale,
-                            width: contentWidth - 16, height: rowHeight, mode: s.mode))
+                            width: contentWidth - 2 * Self.gap, height: rowHeight, mode: mode))
                     if index == leadingPinnedCount(s.dropdown, pins: s.pins) - 1 && index + 1 < s.dropdown.count {
                         let line = NSBox(); line.boxType = .separator
-                        line.widthAnchor.constraint(equalToConstant: contentWidth - 16).isActive = true
+                        line.widthAnchor.constraint(equalToConstant: contentWidth - 2 * Self.gap).isActive = true
                         root.addArrangedSubview(line)
                     }
                 }
-                root.addArrangedSubview(hint("= pin · W close window · ↑↓ move · 1-9 jump · release ⌥ to switch", size: 11 * scale, width: contentWidth - 16))
+                if let last = root.arrangedSubviews.last { root.setCustomSpacing(Self.gap, after: last) }
+                for line in hintLines(s.mode) {
+                    let label = hint(line, size: 11 * scale, width: contentWidth - 2 * Self.gap)
+                    label.alignment = .center
+                    root.addArrangedSubview(label)
+                }
             }
         }
         visualEffect.subviews.forEach { $0.removeFromSuperview() }
@@ -114,6 +144,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             setFrameOrigin(NSPoint(x: area.midX - frame.width / 2, y: area.midY - frame.height / 2))
         }
         orderFrontRegardless()
+        showQuickNav(s, bookmarkHint: bookmarkHint, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
         if s.mode == .list {
             makeKey()
             search?.becomeFirstResponder()
@@ -121,7 +152,34 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         }
     }
 
-    func hide() { orderOut(nil) }
+    func hide() {
+        orderOut(nil)
+        quickNavPanel.orderOut(nil)
+    }
+
+    private func showQuickNav(_ s: Switcher, bookmarkHint: String?, fontSize: CGFloat, scale: CGFloat, rowHeight: CGFloat) {
+        guard s.mode != .list, let effect = quickNavPanel.contentView else {
+            quickNavPanel.orderOut(nil)
+            return
+        }
+        let box = quickNavBox(s, bookmarkHint: bookmarkHint, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
+        effect.subviews.forEach { $0.removeFromSuperview() }
+        effect.addSubview(box)
+        box.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            box.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: Self.gap),
+            box.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -Self.gap),
+            box.topAnchor.constraint(equalTo: effect.topAnchor, constant: Self.gap),
+            box.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -Self.gap),
+        ])
+        quickNavPanel.setContentSize(effect.fittingSize)
+        let spacing: CGFloat = 12
+        let width = quickNavPanel.frame.width
+        let area = (screen ?? NSScreen.main)?.visibleFrame ?? .infinite
+        let x = frame.maxX + spacing + width <= area.maxX ? frame.maxX + spacing : frame.minX - spacing - width
+        quickNavPanel.setFrameTopLeftPoint(NSPoint(x: x, y: frame.maxY))
+        quickNavPanel.orderFrontRegardless()
+    }
 
     // Loading an app icon costs ~5 ms and every key press re-renders every tile.
     private func appIcon(_ pid: pid_t) -> NSImage {
@@ -141,17 +199,18 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return field
     }
 
-    private func strip(_ s: Switcher, fontSize: CGFloat, scale: CGFloat) -> NSView {
+    private func strip(_ s: Switcher, mode: Switcher.Mode, fontSize: CGFloat, scale: CGFloat) -> NSView {
         let box = NSStackView()
         box.orientation = .vertical
         box.alignment = .centerX
+        box.spacing = Self.gap
         let icons = NSStackView()
-        icons.spacing = (8 * scale).rounded()
+        icons.spacing = (Self.gap * scale).rounded()
         // Without this the stack can stretch to the dropdown width on re-render and pin the icon left.
         icons.setHuggingPriority(.required, for: .horizontal)
         let size = Settings.iconSize
         for (index, pid) in s.apps.enumerated() {
-            let tile: NSView = s.mode == .strip ? RowView(index: index, onKey: onKey) : NSView()
+            let tile: NSView = mode == .strip ? RowView(index: index, onKey: onKey) : NSView()
             tile.wantsLayer = true
             tile.layer?.cornerRadius = size * 0.16
             tile.layer?.backgroundColor = index == s.appIndex ? NSColor.labelColor.withAlphaComponent(0.18).cgColor : NSColor.clear.cgColor
@@ -163,7 +222,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                 icon.centerXAnchor.constraint(equalTo: tile.centerXAnchor), icon.centerYAnchor.constraint(equalTo: tile.centerYAnchor),
                 icon.widthAnchor.constraint(equalToConstant: size * 0.78), icon.heightAnchor.constraint(equalToConstant: size * 0.78),
             ])
-            if s.mode == .strip, let badge = badge(index, size: 11 * scale, selected: false) {
+            if mode == .strip, let badge = badge(index, size: 11 * scale, selected: false) {
                 tile.addSubview(badge)
                 NSLayoutConstraint.activate([
                     badge.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: -(size * 0.08).rounded()),
@@ -179,9 +238,15 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         label.widthAnchor.constraint(equalToConstant: max(size, icons.fittingSize.width)).isActive = true
         box.addArrangedSubview(label)
         if s.mode == .strip {
-            let stripHint = hint("↑ search   ↓ windows   W close all   Q quit", size: 11 * scale)
-            stripHint.setContentCompressionResistancePriority(.required, for: .horizontal)
-            box.addArrangedSubview(stripHint)
+            box.setCustomSpacing(2, after: label)
+            box.addArrangedSubview(hint("W close all · Q quit", size: 11 * scale))
+        }
+        if mode == .strip {
+            for line in hintLines(s.mode) {
+                let stripHint = hint(line, size: 11 * scale)
+                stripHint.setContentCompressionResistancePriority(.required, for: .horizontal)
+                box.addArrangedSubview(stripHint)
+            }
         }
         return box
     }
@@ -210,22 +275,75 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         for view in [icon, label, pin] { view.translatesAutoresizingMaskIntoConstraints = false }
         NSLayoutConstraint.activate([
             row.widthAnchor.constraint(equalToConstant: width), row.heightAnchor.constraint(equalToConstant: height),
-            icon.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 8), icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            icon.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap), icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             icon.widthAnchor.constraint(equalToConstant: 28 * scale), icon.heightAnchor.constraint(equalToConstant: 28 * scale),
-            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 10), label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-            pin.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -8), pin.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: Self.gap), label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            pin.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -Self.gap), pin.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             pin.widthAnchor.constraint(equalToConstant: 28 * scale), pin.heightAnchor.constraint(equalToConstant: 28 * scale),
         ])
         if let badge = badge(index, size: 11 * scale, selected: selected, prefix: mode == .list ? "⌘" : "") {
             row.addSubview(badge)
             NSLayoutConstraint.activate([
-                label.trailingAnchor.constraint(equalTo: badge.leadingAnchor, constant: -8),
-                badge.trailingAnchor.constraint(equalTo: pin.leadingAnchor, constant: -6), badge.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+                label.trailingAnchor.constraint(equalTo: badge.leadingAnchor, constant: -Self.gap),
+                badge.trailingAnchor.constraint(equalTo: pin.leadingAnchor, constant: -Self.gap), badge.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             ])
         } else {
-            label.trailingAnchor.constraint(equalTo: pin.leadingAnchor, constant: -8).isActive = true
+            label.trailingAnchor.constraint(equalTo: pin.leadingAnchor, constant: -Self.gap).isActive = true
         }
         return row
+    }
+
+    private func quickNavBox(_ s: Switcher, bookmarkHint: String?, fontSize: CGFloat, scale: CGFloat, rowHeight: CGFloat) -> NSView {
+        let width = (260 * scale).rounded()
+        let box = NSStackView()
+        box.orientation = .vertical; box.alignment = .leading; box.spacing = 2
+        let title = NSTextField(labelWithString: "Quick nav")
+        title.font = .systemFont(ofSize: 11 * scale, weight: .semibold)
+        title.textColor = .secondaryLabelColor
+        title.alignment = .center
+        title.widthAnchor.constraint(equalToConstant: width - 2 * Self.gap).isActive = true
+        box.addArrangedSubview(title)
+        box.setCustomSpacing(Self.gap, after: title)
+        for (index, url) in s.quickNav.enumerated() {
+            let selected = s.mode == .quickNav && index == s.quickNavRow
+            let row = NSView()
+            row.wantsLayer = true
+            row.layer?.cornerRadius = 8 * scale
+            row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
+            let icon = NSImageView(image: url.quickNavIcon)
+            icon.imageScaling = .scaleProportionallyUpOrDown
+            let label = NSTextField(labelWithString: url.quickNavName)
+            label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
+            label.lineBreakMode = .byTruncatingMiddle
+            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            row.addSubview(icon); row.addSubview(label)
+            for view in [icon, label] { view.translatesAutoresizingMaskIntoConstraints = false }
+            NSLayoutConstraint.activate([
+                row.widthAnchor.constraint(equalToConstant: width - 2 * Self.gap), row.heightAnchor.constraint(equalToConstant: rowHeight),
+                icon.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap), icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+                icon.widthAnchor.constraint(equalToConstant: 28 * scale), icon.heightAnchor.constraint(equalToConstant: 28 * scale),
+                label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: Self.gap), label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            ])
+            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") {
+                row.addSubview(badge)
+                NSLayoutConstraint.activate([
+                    label.trailingAnchor.constraint(lessThanOrEqualTo: badge.leadingAnchor, constant: -Self.gap),
+                    badge.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -Self.gap),
+                    badge.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+                ])
+            } else {
+                label.trailingAnchor.constraint(lessThanOrEqualTo: row.trailingAnchor, constant: -Self.gap).isActive = true
+            }
+            box.addArrangedSubview(row)
+        }
+        let footer = s.mode == .quickNav ? ["↑↓ move · ← back · − remove", "release ⌥ to open"] : [bookmarkHint].compactMap { $0 }
+        if !footer.isEmpty, let last = box.arrangedSubviews.last { box.setCustomSpacing(Self.gap, after: last) }
+        for line in footer {
+            let label = hint(line, size: 11 * scale, width: width - 2 * Self.gap)
+            label.alignment = .center
+            box.addArrangedSubview(label)
+        }
+        return box
     }
 
     private func badge(_ index: Int, size: CGFloat, selected: Bool, prefix: String = "") -> NSView? {
@@ -237,10 +355,21 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return label
     }
 
-    private func hint(_ text: String, size: CGFloat, width: CGFloat? = nil) -> NSView {
+    // Keys in the strip and dropdown are pressed while ⌥ is still held, so the hints leave ⌥ out.
+    private func hintLines(_ mode: Switcher.Mode) -> [String] {
+        switch mode {
+        case .strip: return ["⇥ next app · ↑ search · ↓ windows · → quick nav"]
+        case .dropdown: return ["↑↓ move · ⇥ next app · → quick nav · release ⌥ to switch", "= pin · W close window"]
+        case .quickNav, .list, .closed: return []
+        }
+    }
+
+    private func hint(_ text: String, size: CGFloat, width: CGFloat? = nil) -> NSTextField {
         let label = NSTextField(labelWithString: text)
-        label.font = .systemFont(ofSize: size)
+        let system = NSFont.systemFont(ofSize: size)
+        label.font = system.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? system
         label.textColor = .secondaryLabelColor
+        label.lineBreakMode = .byTruncatingTail
         if let width {
             label.widthAnchor.constraint(equalToConstant: width).isActive = true
         }
@@ -351,5 +480,20 @@ private extension NSView {
             view = current.superview
         }
         return nil
+    }
+}
+
+extension URL {
+    @MainActor var quickNavIcon: NSImage {
+        isFileURL ? NSWorkspace.shared.icon(forFile: path) : NSImage(systemSymbolName: "globe", accessibilityDescription: "Web page") ?? NSImage()
+    }
+
+    var quickNavName: String {
+        guard isFileURL else {
+            let name = (host ?? "") + path
+            return name.isEmpty ? absoluteString : name
+        }
+        let name = FileManager.default.displayName(atPath: path)
+        return hasDirectoryPath && pathExtension != "app" ? "\(name) (folder)" : name
     }
 }

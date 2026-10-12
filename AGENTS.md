@@ -1,6 +1,11 @@
 # AGENTS.md
 
-Ziran is a menubar window switcher built with Swift 6, AppKit, SwiftPM, macOS 14+, and no dependencies.
+Ziran is a keyboard-first menubar window switcher built with Swift 6, AppKit, SwiftPM, macOS 14+, and no dependencies.
+
+## Keyboard-first
+
+- Every action has a keyboard shortcut; mouse and pointer input are optional extras, never the only way.
+- Each view shows hints for the keys that work in it; keep hints in sync when changing key handling.
 
 ## Commands
 
