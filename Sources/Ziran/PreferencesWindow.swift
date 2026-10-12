@@ -8,7 +8,7 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
     private let valueLabel = NSTextField(labelWithString: "")
     private let iconSlider = NSSlider()
     private let iconValueLabel = NSTextField(labelWithString: "")
-    private let previewLabel = NSTextField(labelWithString: "Sample window title  —  Ziran")
+    private let previewLabel = NSTextField(labelWithString: "Sample window title · Ziran")
     private let loginCheckbox = NSButton(checkboxWithTitle: "Launch at login", target: nil, action: nil)
     private let windowShortcutsCheckbox = NSButton(checkboxWithTitle: "Window resize shortcuts (listed under Window in the menu bar)", target: nil, action: nil)
     private var didCenter = false

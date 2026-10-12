@@ -266,7 +266,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         let icon = NSImageView(image: appIcon(window.pid))
         icon.imageScaling = .scaleProportionallyUpOrDown
         let appName = window.appName
-        let title = window.title.isEmpty || window.title == appName ? appName : window.title + "  —  " + appName
+        let title = window.title.isEmpty || window.title == appName ? appName : window.title + " · " + appName
         let label = NSTextField(labelWithString: title)
         label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
         label.lineBreakMode = .byTruncatingMiddle
