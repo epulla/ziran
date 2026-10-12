@@ -13,6 +13,9 @@ struct Switcher {
             removeBookmark(URL)
     }
 
+    // Q and W are skipped because ⌥Q quits and ⌥W closes.
+    static let shortcutLabels = (1...9).map(String.init) + "ABCDEFGHIJKLMNOPRSTUVXYZ".map(String.init)
+
     private(set) var mode: Mode = .closed
     private(set) var appIndex = 0
     private(set) var row = 0

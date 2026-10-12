@@ -6,6 +6,26 @@ private let screen = CGRect(x: 100, y: 25, width: 1200, height: 800)
 private let loose = CGRect(x: 300, y: 100, width: 300, height: 200)
 
 @Test(arguments: [
+    (3, CGFloat(96), CGFloat(8), CGFloat(992), 3),
+    (33, CGFloat(96), CGFloat(8), CGFloat(992), 7),
+    (33, CGFloat(160), CGFloat(8), CGFloat(992), 5),
+    (5, CGFloat(96), CGFloat(8), CGFloat(50), 1),
+])
+func layoutStripColumns(count: Int, tile: CGFloat, spacing: CGFloat, available: CGFloat, expected: Int) {
+    #expect(Layout.stripColumns(count: count, tile: tile, spacing: spacing, available: available) == expected)
+}
+
+@Test(arguments: [
+    (CGFloat?.none, CGFloat(400), CGRect(x: 0, y: 0, width: 1440, height: 900), CGFloat(520)),
+    (nil, 600, CGRect(x: 0, y: 0, width: 800, height: 900), -72),
+    (CGFloat?(500), 600, CGRect(x: 0, y: 0, width: 1440, height: 900), 500),
+    (CGFloat?(700), 600, CGRect(x: 0, y: 0, width: 1440, height: 900), 568),
+])
+func layoutPanelX(current: CGFloat?, width: CGFloat, area: CGRect, expected: CGFloat) {
+    #expect(Layout.panelX(current: current, width: width, quickNavWidth: 260, spacing: 12, area: area) == expected)
+}
+
+@Test(arguments: [
     (Layout.Action.leftHalf, loose, CGRect(x: 100, y: 25, width: 600, height: 800)),
     (.leftHalf, CGRect(x: 100, y: 25, width: 600, height: 800), CGRect(x: 100, y: 25, width: 800, height: 800)),
     (.leftHalf, CGRect(x: 100, y: 25, width: 800, height: 800), CGRect(x: 100, y: 25, width: 400, height: 800)),
