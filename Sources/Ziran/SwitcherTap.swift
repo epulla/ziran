@@ -219,6 +219,11 @@ final class SwitcherTap {
         }
         let slots = Layout.templateSlots(windows, in: display)
         guard !slots.isEmpty else { NSSound.beep(); return }
+        if let index = Settings.layoutTemplates.firstIndex(where: { Set($0.slots) == Set(slots) }) {
+            NSSound.beep()
+            run(switcher.handle(.selectTemplate(index)))
+            return
+        }
         let names = tracker.snapshot().filter { window in slots.contains { $0.bundleID == window.bundleId } }
         let template = LayoutTemplate(
             name: slots.compactMap { slot in names.first { $0.bundleId == slot.bundleID }?.appName }.joined(separator: " · "), slots: slots)

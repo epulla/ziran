@@ -1,7 +1,7 @@
 import Foundation
 
 struct LayoutTemplate: Codable, Equatable {
-    struct Slot: Codable, Equatable {
+    struct Slot: Codable, Equatable, Hashable {
         var bundleID: String
         var action: Layout.Action
     }

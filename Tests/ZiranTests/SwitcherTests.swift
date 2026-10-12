@@ -309,6 +309,9 @@ func switcherQuickNav(keys: [Switcher.Key], expected: Switcher.Effect, mode: Swi
     ([.down, .left, .right], .update, .dropdown),
     ([.left, .bookmark], .removeTemplate(templates[0]), .templates),
     ([.left, .saveTemplate], .saveTemplate, .templates),
+    ([.left, .selectTemplate(1)], .update, .templates),
+    ([.left, .selectTemplate(8)], .none, .templates),
+    ([.left, .select(1)], .none, .templates),
     ([.left, .escape], .close, .closed),
     ([.left, .enter], .applyTemplate(templates[0]), .closed),
     ([.applyTemplate(1)], .applyTemplate(templates[1]), .closed),
@@ -322,6 +325,9 @@ func switcherTemplates(keys: [Switcher.Key], expected: Switcher.Effect, mode: Sw
     for key in keys { effect = switcher.handle(key) }
     #expect(effect == expected)
     #expect(switcher.mode == mode)
+    if keys.contains(where: { if case .selectTemplate = $0 { true } else { false } }) {
+        #expect(switcher.templatesRow == (keys.last == .selectTemplate(1) ? 1 : 0))
+    }
 }
 
 @Test func switcherTemplatesChangedClampsRowAndStaysOpenWhenEmpty() {
