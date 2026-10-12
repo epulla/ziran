@@ -100,7 +100,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             search = nil
             // Quick nav keeps showing the strip or dropdown it was entered from.
             let mode = s.mode == .quickNav ? s.quickNavReturn : s.mode
-            let stripView = strip(s, mode: mode, fontSize: fontSize, scale: scale)
+            let stripView = strip(s, mode: mode, fontSize: fontSize, scale: scale, maxWidth: listWidth - 2 * Self.gap)
             let stripWidth = stripView.fittingSize.width
             contentWidth = max(mode == .dropdown ? listWidth : 0, stripWidth + 2 * Self.gap)
             stripView.widthAnchor.constraint(equalToConstant: contentWidth - 2 * Self.gap).isActive = true
@@ -199,7 +199,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return field
     }
 
-    private func strip(_ s: Switcher, mode: Switcher.Mode, fontSize: CGFloat, scale: CGFloat) -> NSView {
+    private func strip(_ s: Switcher, mode: Switcher.Mode, fontSize: CGFloat, scale: CGFloat, maxWidth: CGFloat) -> NSView {
         let box = NSStackView()
         box.orientation = .vertical
         box.alignment = .centerX
@@ -233,9 +233,12 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         }
         box.addArrangedSubview(icons)
         let app = s.apps.indices.contains(s.appIndex) ? NSRunningApplication(processIdentifier: s.apps[s.appIndex])?.localizedName ?? "" : ""
-        let label = NSTextField(labelWithString: app)
-        label.font = .systemFont(ofSize: fontSize, weight: .medium); label.lineBreakMode = .byTruncatingMiddle; label.alignment = .center
-        label.widthAnchor.constraint(equalToConstant: max(size, icons.fittingSize.width)).isActive = true
+        // burnedout: assumed "App · Title" format, title of the window ⌥ release would focus, app name alone when title is empty or equal
+        let title = (s.selection ?? s.dropdown.first)?.title ?? ""
+        let label = NSTextField(labelWithString: title.isEmpty || title == app ? app : app + " · " + title)
+        label.font = .systemFont(ofSize: fontSize, weight: .medium); label.lineBreakMode = .byTruncatingTail; label.alignment = .center
+        // burnedout: assumed label width max(icon row, 400pt × scale) capped at list width, fixed so the panel doesn't jump per title
+        label.widthAnchor.constraint(equalToConstant: min(max(size, icons.fittingSize.width, (400 * scale).rounded()), maxWidth)).isActive = true
         box.addArrangedSubview(label)
         if s.mode == .strip {
             box.setCustomSpacing(2, after: label)
@@ -263,7 +266,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         let icon = NSImageView(image: appIcon(window.pid))
         icon.imageScaling = .scaleProportionallyUpOrDown
         let appName = window.appName
-        let title = window.title.isEmpty || window.title == appName ? appName : window.title + "  —  " + appName
+        let title = window.title.isEmpty || window.title == appName ? appName : window.title + " · " + appName
         let label = NSTextField(labelWithString: title)
         label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
         label.lineBreakMode = .byTruncatingMiddle
