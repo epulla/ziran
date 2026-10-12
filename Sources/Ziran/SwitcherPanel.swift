@@ -378,7 +378,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         switch mode {
         case .strip: return ["⇥ next app · ↑ search · ↓ windows · → quick nav"]
         case .dropdown: return ["↑↓ move · ⇥ next app · → quick nav · release ⌥ to switch", "= pin · W close window"]
-        case .quickNav, .list, .closed: return []
+        case .quickNav, .templates, .list, .closed: return []
         }
     }
 
