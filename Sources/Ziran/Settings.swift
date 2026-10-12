@@ -1,5 +1,15 @@
 import Foundation
 
+struct LayoutTemplate: Codable, Equatable {
+    struct Slot: Codable, Equatable {
+        var bundleID: String
+        var action: Layout.Action
+    }
+
+    var name: String
+    var slots: [Slot]
+}
+
 @MainActor
 enum Settings {
     static var defaults = UserDefaults.standard
@@ -30,6 +40,16 @@ enum Settings {
             }
         }
         set { defaults.set(newValue.map(\.absoluteString), forKey: "quickNav") }
+    }
+
+    static var layoutTemplates: [LayoutTemplate] {
+        get {
+            guard let data = defaults.data(forKey: "layoutTemplates"),
+                let templates = try? JSONDecoder().decode([LayoutTemplate].self, from: data)
+            else { return [] }
+            return templates
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "layoutTemplates") }
     }
 
     private static func value(_ key: String, default fallback: Double, range: ClosedRange<Double>) -> Double {

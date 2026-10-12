@@ -2,7 +2,16 @@ import CoreGraphics
 
 // Frames use Accessibility coordinates: origin at the top-left of the primary screen, y grows downward.
 enum Layout {
-    enum Action: Equatable { case leftHalf, rightHalf, topHalf, bottomHalf, topLeft, topRight, bottomLeft, bottomRight, maximize, center }
+    enum Action: String, Codable, Equatable { case leftHalf, rightHalf, topHalf, bottomHalf, topLeft, topRight, bottomLeft, bottomRight, maximize, center }
+
+    static func snapAction(for window: CGRect, in screen: CGRect) -> Action {
+        let actions: [Action] = [.leftHalf, .rightHalf, .topHalf, .bottomHalf, .topLeft, .topRight, .bottomLeft, .bottomRight, .maximize]
+        return actions.max { lhs, rhs in
+            let lhsIntersection = frame(lhs, current: .zero, in: screen).intersection(window)
+            let rhsIntersection = frame(rhs, current: .zero, in: screen).intersection(window)
+            return max(0, lhsIntersection.width * lhsIntersection.height) < max(0, rhsIntersection.width * rhsIntersection.height)
+        }!
+    }
 
     static func frame(_ action: Action, current: CGRect, in screen: CGRect) -> CGRect {
         let halfWidth = screen.width / 2

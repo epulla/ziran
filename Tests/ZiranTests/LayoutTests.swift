@@ -53,3 +53,13 @@ func layoutFrames(action: Layout.Action, current: CGRect, expected: CGRect) {
     let target = CGRect(x: 1200, y: 0, width: 1920, height: 1080)
     #expect(Layout.move(CGRect(x: 700, y: 25, width: 600, height: 800), from: screen, to: target) == CGRect(x: 2160, y: 0, width: 960, height: 1080))
 }
+
+@Test(arguments: [
+    (CGRect(x: 100, y: 25, width: 600, height: 800), Layout.Action.leftHalf),
+    (CGRect(x: 700, y: 25, width: 600, height: 800), Layout.Action.rightHalf),
+    (CGRect(x: 100, y: 425, width: 1200, height: 400), Layout.Action.bottomHalf),
+    (CGRect(x: 100, y: 25, width: 1200, height: 800), Layout.Action.maximize),
+])
+func layoutSnapAction(window: CGRect, expected: Layout.Action) {
+    #expect(Layout.snapAction(for: window, in: screen) == expected)
+}
