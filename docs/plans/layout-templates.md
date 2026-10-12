@@ -20,6 +20,6 @@
 ## Tasks
 
 - [x] 1. Template model: `LayoutTemplate` persisted in `Settings.layoutTemplates`, plus `Layout` snap-to-nearest-action helper. Check: `make test` passes with new Settings and Layout tests.
-- [ ] 2. Switcher state: `.templates` mode, keys and effects (apply/save/remove, templates-changed). Check: `make test` passes with new Switcher table tests.
+- [x] 2. Switcher state: `.templates` mode, keys and effects (apply/save/remove, templates-changed). Check: `make test` passes with new Switcher table tests.
 - [ ] 3. System side: `SwitcherTap` key mapping and effects; save reads visible windows' AX frames on the panel display; apply launches apps, waits ≤5 s, sets frames. Check: `make build` with zero warnings, `make test` passes.
 - [ ] 4. Panel UI: left templates box, hints, `Layout.panelX` reserving both side panels; delete this plan. Check: `make lint && make test` pass; manual: save Chrome · Slack halves, rearrange, apply restores; quit Slack, apply relaunches it.

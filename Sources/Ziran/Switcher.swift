@@ -3,14 +3,15 @@ import Darwin
 import Foundation
 
 struct Switcher {
-    enum Mode: Equatable { case closed, strip, dropdown, list, quickNav }
+    enum Mode: Equatable { case closed, strip, dropdown, list, quickNav, templates }
     enum Key: Equatable {
         case tab, shiftTab, nextWindow, previousWindow, up, down, left, right, enter, escape, optionUp, closeWindow, quitApp, bookmark,
-            windowClosed(CGWindowID), appQuit(pid_t), query(String), select(Int), pin(CGWindowID), jump(Int), openQuickNav(Int), quickNavChanged([URL])
+            windowClosed(CGWindowID), appQuit(pid_t), query(String), select(Int), pin(CGWindowID), jump(Int), openQuickNav(Int), quickNavChanged([URL]),
+            applyTemplate(Int), templatesChanged([LayoutTemplate]), saveTemplate
     }
     enum Effect: Equatable {
         case none, update, focus(WindowInfo), close, closeWindow(WindowInfo), closeWindows([WindowInfo]), quitApp(pid_t), open(URL), toggleBookmark(WindowInfo),
-            removeBookmark(URL)
+            removeBookmark(URL), applyTemplate(LayoutTemplate), saveTemplate, removeTemplate(LayoutTemplate)
     }
 
     // Q and W are skipped because ⌥Q quits and ⌥W closes.
@@ -25,6 +26,9 @@ struct Switcher {
     private(set) var quickNav: [URL] = []
     private(set) var quickNavRow = 0
     private(set) var quickNavReturn = Mode.strip
+    private(set) var templates: [LayoutTemplate] = []
+    private(set) var templatesRow = 0
+    private(set) var templatesReturn = Mode.strip
 
     var apps: [pid_t] { MRU.apps(windows.filter { !$0.isMinimized }) }
     var dropdown: [WindowInfo] {
@@ -38,13 +42,14 @@ struct Switcher {
         case .strip: return dropdown.first
         case .dropdown: return dropdown.indices.contains(row) ? dropdown[row] : nil
         case .list: return list.indices.contains(row) ? list[row] : nil
-        case .closed, .quickNav: return nil
+        case .closed, .quickNav, .templates: return nil
         }
     }
 
-    mutating func open(_ ordered: [WindowInfo], app pid: pid_t? = nil, quickNav: [URL] = []) -> Effect {
+    mutating func open(_ ordered: [WindowInfo], app pid: pid_t? = nil, quickNav: [URL] = [], templates: [LayoutTemplate] = []) -> Effect {
         windows = pid.map { MRU.windows(of: $0, in: ordered) } ?? ordered
         self.quickNav = quickNav
+        self.templates = templates
         quickNavRow = 0
         mode = pid == nil ? .strip : .dropdown
         appIndex = pid == nil && apps.count > 1 ? 1 : 0
@@ -62,6 +67,29 @@ struct Switcher {
             if mode == .quickNav && urls.isEmpty { mode = quickNavReturn }
             return .update
         }
+        if case .templatesChanged(let values) = key {
+            templates = values
+            templatesRow = min(templatesRow, max(0, values.count - 1))
+            return .update
+        }
+        if case .applyTemplate(let index) = key {
+            guard mode != .list, templates.indices.contains(index) else { return .none }
+            return finish(.applyTemplate(templates[index]))
+        }
+        if mode == .templates {
+            switch key {
+            case .up: templatesRow = max(0, templatesRow - 1); return .update
+            case .down: templatesRow = min(templatesRow + 1, max(0, templates.count - 1)); return .update
+            case .right: mode = templatesReturn; return .update
+            case .enter, .optionUp: return templates.indices.contains(templatesRow) ? finish(.applyTemplate(templates[templatesRow])) : close()
+            case .saveTemplate: return .saveTemplate
+            case .bookmark: return templates.indices.contains(templatesRow) ? .removeTemplate(templates[templatesRow]) : .none
+            case .escape: return close()
+            case .tab, .shiftTab, .nextWindow, .previousWindow, .left, .closeWindow, .quitApp, .windowClosed, .appQuit, .query, .select, .pin, .jump,
+                .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged:
+                return .none
+            }
+        }
         if case .openQuickNav(let index) = key {
             guard mode != .list, quickNav.indices.contains(index) else { return .none }
             return finish(.open(quickNav[index]))
@@ -75,7 +103,7 @@ struct Switcher {
             case .bookmark: return quickNav.indices.contains(quickNavRow) ? .removeBookmark(quickNav[quickNavRow]) : .none
             case .escape: return close()
             case .tab, .shiftTab, .nextWindow, .previousWindow, .right, .closeWindow, .quitApp, .windowClosed, .appQuit, .query, .select, .pin, .jump,
-                .openQuickNav, .quickNavChanged:
+                .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .saveTemplate:
                 return .none
             }
         }
@@ -101,7 +129,7 @@ struct Switcher {
             case .list:
                 guard list.indices.contains(index) else { return .none }
                 row = index
-            case .closed, .quickNav: return .none
+            case .closed, .quickNav, .templates: return .none
             }
             return .update
         }
@@ -155,7 +183,7 @@ struct Switcher {
                 guard let selection else { return close() }
                 return finish(.focus(selection))
             case .tab, .shiftTab, .nextWindow, .previousWindow, .left, .right, .optionUp, .escape, .closeWindow, .quitApp, .bookmark, .windowClosed, .appQuit,
-                .select, .pin, .jump, .openQuickNav, .quickNavChanged:
+                .select, .pin, .jump, .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .saveTemplate:
                 return .none
             }
         }
@@ -183,8 +211,13 @@ struct Switcher {
             guard !quickNav.isEmpty else { return .none }
             quickNavReturn = mode; mode = .quickNav; quickNavRow = 0
             return .update
+        case .left:
+            templatesReturn = mode; mode = .templates; templatesRow = 0
+            return .update
         case .bookmark: return selection.map { .toggleBookmark($0) } ?? .none
-        case .left, .query, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump, .openQuickNav, .quickNavChanged: return .none
+        case .query, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump, .openQuickNav, .quickNavChanged, .applyTemplate,
+            .templatesChanged, .saveTemplate:
+            return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
             guard let selection else { return close() }
