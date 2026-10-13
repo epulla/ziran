@@ -440,11 +440,10 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return box
     }
 
-    // Compact (previews and ⇧N) until ← enters the box, then wide enough to show each template's app names under its preview.
+    // Sized by the preview in both states; app names appear under each preview, wrapping, only once ← enters the box.
     private func templatesBox(_ s: Switcher, scale: CGFloat) -> (box: NSView, selected: NSView?) {
         let expanded = s.mode == .templates
-        let compactWidth = (Settings.iconSize * 1.6).rounded() + (24 * scale).rounded() + 3 * Self.gap
-        let rowWidth = expanded ? max((Self.quickNavBaseWidth * scale).rounded() - 2 * Self.gap, compactWidth) : compactWidth
+        let rowWidth = (Settings.iconSize * 1.6).rounded() + (24 * scale).rounded() + 3 * Self.gap
         var selectedRow: NSView?
         let box = NSStackView()
         box.orientation = .vertical; box.alignment = .leading; box.spacing = 2
