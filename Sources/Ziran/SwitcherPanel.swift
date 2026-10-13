@@ -457,7 +457,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         if let draft = s.draft {
             let preview = templatePreview(draft)
             preview.alphaValue = 0.5
-            let draftHint = hint(expanded ? "= save this layout" : "← then = save", size: 11 * scale)
+            let draftHint = hint(expanded ? "= save" : "← then = save", size: 11 * scale)
             let row = NSStackView(views: [preview, draftHint])
             row.orientation = .vertical; row.alignment = .leading; row.spacing = 4 * scale
             row.edgeInsets = NSEdgeInsets(top: 0, left: Self.gap, bottom: 0, right: Self.gap)
@@ -479,7 +479,10 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             if expanded {
                 let label = NSTextField(wrappingLabelWithString: template.name)
                 label.font = .systemFont(ofSize: 11 * scale, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
-                label.preferredMaxLayoutWidth = rowWidth - 2 * Self.gap
+                label.alignment = .center
+                // Centered under the preview rather than the preview and badge together.
+                label.preferredMaxLayoutWidth = (Settings.iconSize * 1.6).rounded()
+                label.widthAnchor.constraint(equalToConstant: label.preferredMaxLayoutWidth).isActive = true
                 content.addArrangedSubview(label)
             }
             row.addSubview(content)
@@ -494,7 +497,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             box.addArrangedSubview(row)
         }
         let footer =
-            expanded ? ["↑↓ move · → back", "= save · − remove", "release ⌥ to apply"] : s.templates.isEmpty && s.draft == nil ? ["no templates"] : []
+            expanded ? ["↑↓ move · → back", "= save · − remove"] : s.templates.isEmpty && s.draft == nil ? ["no templates"] : []
         if !footer.isEmpty, let last = box.arrangedSubviews.last { box.setCustomSpacing(Self.gap, after: last) }
         for line in footer {
             let label = hint(line, size: 11 * scale, width: rowWidth)
