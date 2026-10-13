@@ -350,3 +350,20 @@ func switcherTemplates(keys: [Switcher.Key], expected: Switcher.Effect, mode: Sw
     #expect(switcher.handle(.enter) == .close)
     #expect(switcher.mode == .closed)
 }
+
+@Test func switcherDraftVisibility() {
+    let draft = [LayoutTemplate.Slot(bundleID: "com.example", action: .leftHalf)]
+    var switcher = Switcher()
+    _ = switcher.open(fixture, draft: draft)
+    #expect(switcher.draft == draft)
+
+    _ = switcher.open(fixture, draft: [])
+    #expect(switcher.draft == nil)
+
+    _ = switcher.open(fixture, templates: [LayoutTemplate(name: "Saved", slots: draft)], draft: draft)
+    #expect(switcher.draft == nil)
+
+    _ = switcher.open(fixture, draft: draft)
+    #expect(switcher.handle(.templatesChanged([LayoutTemplate(name: "Saved", slots: draft)])) == .update)
+    #expect(switcher.draft == nil)
+}

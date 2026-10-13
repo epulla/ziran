@@ -73,7 +73,9 @@ final class SwitcherTap {
                     previousApp = NSWorkspace.shared.frontmostApplication
                     if let pid = previousApp?.processIdentifier {
                         if let focused = AX.focusedWindow() { tracker.touch(focused) }
-                        run(switcher.open(tracker.snapshot(), app: pid, quickNav: Settings.quickNav, templates: Settings.layoutTemplates))
+                        let snapshot = tracker.snapshot()
+                        let draft = templateDisplay().map { templateSlots(snapshot, in: $0) } ?? []
+                        run(switcher.open(snapshot, app: pid, quickNav: Settings.quickNav, templates: Settings.layoutTemplates, draft: draft))
                     }
                 } else {
                     run(switcher.handle(flags.contains(.maskShift) ? .previousWindow : .nextWindow))
@@ -84,7 +86,9 @@ final class SwitcherTap {
                 if switcher.mode == .closed {
                     previousApp = NSWorkspace.shared.frontmostApplication
                     if let focused = AX.focusedWindow() { tracker.touch(focused) }
-                    run(switcher.open(tracker.snapshot(), quickNav: Settings.quickNav, templates: Settings.layoutTemplates))
+                    let snapshot = tracker.snapshot()
+                    let draft = templateDisplay().map { templateSlots(snapshot, in: $0) } ?? []
+                    run(switcher.open(snapshot, quickNav: Settings.quickNav, templates: Settings.layoutTemplates, draft: draft))
                 } else if switcher.mode == .strip || switcher.mode == .dropdown {
                     run(switcher.handle(flags.contains(.maskShift) ? .shiftTab : .tab))
                 }
@@ -218,13 +222,7 @@ final class SwitcherTap {
     private func saveTemplate() {
         guard let display = templateDisplay() else { NSSound.beep(); return }
         let snapshot = tracker.snapshot()
-        let windows = snapshot.sorted { $0.zOrder < $1.zOrder }.compactMap { window -> (String, CGRect)? in
-            guard !window.isMinimized, let frame = window.frame,
-                display.contains(CGPoint(x: frame.midX, y: frame.midY))
-            else { return nil }
-            return (window.bundleId, frame)
-        }
-        let slots = Layout.templateSlots(windows, in: display)
+        let slots = templateSlots(snapshot, in: display)
         guard !slots.isEmpty else { NSSound.beep(); return }
         if let index = Settings.layoutTemplates.firstIndex(where: { Set($0.slots) == Set(slots) }) {
             NSSound.beep()
@@ -236,6 +234,16 @@ final class SwitcherTap {
             name: slots.compactMap { slot in names.first { $0.bundleId == slot.bundleID }?.appName }.joined(separator: " · "), slots: slots)
         Settings.layoutTemplates.append(template)
         run(switcher.handle(.templatesChanged(Settings.layoutTemplates)))
+    }
+
+    private func templateSlots(_ snapshot: [WindowInfo], in display: CGRect) -> [LayoutTemplate.Slot] {
+        let windows = snapshot.sorted { $0.zOrder < $1.zOrder }.compactMap { window -> (String, CGRect)? in
+            guard !window.isMinimized, let frame = window.frame,
+                display.contains(CGPoint(x: frame.midX, y: frame.midY))
+            else { return nil }
+            return (window.bundleId, frame)
+        }
+        return Layout.templateSlots(windows, in: display)
     }
 
     private func apply(_ template: LayoutTemplate) {

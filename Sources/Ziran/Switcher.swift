@@ -29,6 +29,7 @@ struct Switcher {
     private(set) var templates: [LayoutTemplate] = []
     private(set) var templatesRow = 0
     private(set) var templatesReturn = Mode.strip
+    private(set) var draftSlots: [LayoutTemplate.Slot] = []
 
     var apps: [pid_t] { MRU.apps(windows.filter { !$0.isMinimized }) }
     var dropdown: [WindowInfo] {
@@ -37,6 +38,10 @@ struct Switcher {
     }
     var list: [WindowInfo] { pinnedFirst(MRU.filter(query, windows)) }
     var pinned: [WindowInfo] { pins.compactMap { id in windows.first { $0.id == id } } }
+    var draft: [LayoutTemplate.Slot]? {
+        guard !draftSlots.isEmpty, !templates.contains(where: { Set($0.slots) == Set(draftSlots) }) else { return nil }
+        return draftSlots
+    }
     var selection: WindowInfo? {
         switch mode {
         case .strip: return dropdown.first
@@ -46,10 +51,13 @@ struct Switcher {
         }
     }
 
-    mutating func open(_ ordered: [WindowInfo], app pid: pid_t? = nil, quickNav: [URL] = [], templates: [LayoutTemplate] = []) -> Effect {
+    mutating func open(
+        _ ordered: [WindowInfo], app pid: pid_t? = nil, quickNav: [URL] = [], templates: [LayoutTemplate] = [], draft: [LayoutTemplate.Slot] = []
+    ) -> Effect {
         windows = pid.map { MRU.windows(of: $0, in: ordered) } ?? ordered
         self.quickNav = quickNav
         self.templates = templates
+        draftSlots = draft
         quickNavRow = 0
         mode = pid == nil ? .strip : .dropdown
         appIndex = pid == nil && apps.count > 1 ? 1 : 0
