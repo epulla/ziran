@@ -8,6 +8,19 @@ struct WindowInfo: Equatable, Sendable {
     let appName: String
     let title: String
     let isMinimized: Bool
+    let frame: CGRect?
+    let zOrder: Int
+
+    init(id: CGWindowID, pid: pid_t, bundleId: String, appName: String, title: String, isMinimized: Bool, frame: CGRect? = nil, zOrder: Int = .max) {
+        self.id = id
+        self.pid = pid
+        self.bundleId = bundleId
+        self.appName = appName
+        self.title = title
+        self.isMinimized = isMinimized
+        self.frame = frame
+        self.zOrder = zOrder
+    }
 }
 
 enum MRU {

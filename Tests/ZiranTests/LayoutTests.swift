@@ -20,9 +20,10 @@ func layoutStripColumns(count: Int, tile: CGFloat, spacing: CGFloat, available: 
     (nil, 600, CGRect(x: 0, y: 0, width: 800, height: 900), -72),
     (CGFloat?(500), 600, CGRect(x: 0, y: 0, width: 1440, height: 900), 500),
     (CGFloat?(700), 600, CGRect(x: 0, y: 0, width: 1440, height: 900), 568),
+    (CGFloat?(100), 400, CGRect(x: 0, y: 0, width: 1440, height: 900), 272),
 ])
 func layoutPanelX(current: CGFloat?, width: CGFloat, area: CGRect, expected: CGFloat) {
-    #expect(Layout.panelX(current: current, width: width, quickNavWidth: 260, spacing: 12, area: area) == expected)
+    #expect(Layout.panelX(current: current, width: width, sideWidth: 260, spacing: 12, area: area) == expected)
 }
 
 @Test(arguments: [
@@ -52,4 +53,33 @@ func layoutFrames(action: Layout.Action, current: CGRect, expected: CGRect) {
 @Test func layoutMoveKeepsRelativeFrame() {
     let target = CGRect(x: 1200, y: 0, width: 1920, height: 1080)
     #expect(Layout.move(CGRect(x: 700, y: 25, width: 600, height: 800), from: screen, to: target) == CGRect(x: 2160, y: 0, width: 960, height: 1080))
+}
+
+@Test(arguments: [
+    (CGRect(x: 100, y: 25, width: 600, height: 800), Layout.Action.leftHalf),
+    (CGRect(x: 700, y: 25, width: 600, height: 800), Layout.Action.rightHalf),
+    (CGRect(x: 100, y: 425, width: 1200, height: 400), Layout.Action.bottomHalf),
+    (CGRect(x: 100, y: 25, width: 1200, height: 800), Layout.Action.maximize),
+    (CGRect(x: 100, y: 25, width: 600, height: 400), Layout.Action.topLeft),
+    (CGRect(x: 700, y: 25, width: 600, height: 400), Layout.Action.topRight),
+    (CGRect(x: 100, y: 425, width: 600, height: 400), Layout.Action.bottomLeft),
+    (CGRect(x: 700, y: 425, width: 600, height: 400), Layout.Action.bottomRight),
+])
+func layoutSnapAction(window: CGRect, expected: Layout.Action) {
+    #expect(Layout.snapAction(for: window, in: screen) == expected)
+}
+
+@Test func layoutTemplateSlotsSkipOverlappingWindows() {
+    let windows: [(String, CGRect)] = [
+        ("chrome", CGRect(x: 100, y: 25, width: 600, height: 800)),
+        ("slack", CGRect(x: 700, y: 25, width: 600, height: 800)),
+        ("ghostty", CGRect(x: 100, y: 25, width: 600, height: 800)),
+        ("notes", screen),
+    ]
+
+    #expect(
+        Layout.templateSlots(windows, in: screen) == [
+            LayoutTemplate.Slot(bundleID: "chrome", action: .leftHalf),
+            LayoutTemplate.Slot(bundleID: "slack", action: .rightHalf),
+        ])
 }

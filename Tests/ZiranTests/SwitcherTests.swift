@@ -263,6 +263,7 @@ func switcherQuitAppOnlyWorksInStrip(app: pid_t?) {
 }
 
 private let bookmarks = [URL(string: "https://example.com")!, URL(fileURLWithPath: "/Applications")]
+private let templates = [LayoutTemplate(name: "One", slots: []), LayoutTemplate(name: "Two", slots: [])]
 
 @Test(arguments: [
     ([Switcher.Key.right, .optionUp], Switcher.Effect.open(bookmarks[0]), Switcher.Mode.closed),
@@ -300,4 +301,69 @@ func switcherQuickNav(keys: [Switcher.Key], expected: Switcher.Effect, mode: Swi
     #expect(switcher.quickNavRow == 0)
     #expect(switcher.handle(.quickNavChanged([])) == .update)
     #expect(switcher.mode == .strip)
+}
+
+@Test(arguments: [
+    ([Switcher.Key.left, .down, .enter], Switcher.Effect.applyTemplate(templates[1]), Switcher.Mode.closed),
+    ([.left, .right], .update, .strip),
+    ([.down, .left, .right], .update, .dropdown),
+    ([.left, .bookmark], .removeTemplate(templates[0]), .templates),
+    ([.left, .saveTemplate], .saveTemplate, .templates),
+    ([.left, .selectTemplate(1)], .update, .templates),
+    ([.left, .selectTemplate(8)], .none, .templates),
+    ([.left, .select(1)], .none, .templates),
+    ([.left, .escape], .close, .closed),
+    ([.left, .enter], .applyTemplate(templates[0]), .closed),
+    ([.applyTemplate(1)], .applyTemplate(templates[1]), .closed),
+    ([.applyTemplate(8)], .none, .strip),
+    ([.up, .applyTemplate(0)], .none, .list),
+])
+func switcherTemplates(keys: [Switcher.Key], expected: Switcher.Effect, mode: Switcher.Mode) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, templates: templates)
+    var effect = Switcher.Effect.update
+    for key in keys { effect = switcher.handle(key) }
+    #expect(effect == expected)
+    #expect(switcher.mode == mode)
+    if keys.contains(where: { if case .selectTemplate = $0 { true } else { false } }) {
+        #expect(switcher.templatesRow == (keys.last == .selectTemplate(1) ? 1 : 0))
+    }
+}
+
+@Test func switcherTemplatesChangedClampsRowAndStaysOpenWhenEmpty() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, templates: templates)
+    _ = switcher.handle(.left)
+    _ = switcher.handle(.down)
+    #expect(switcher.handle(.templatesChanged([templates[0]])) == .update)
+    #expect(switcher.templatesRow == 0)
+    #expect(switcher.mode == .templates)
+    #expect(switcher.handle(.templatesChanged([])) == .update)
+    #expect(switcher.templatesRow == 0)
+    #expect(switcher.mode == .templates)
+}
+
+@Test func switcherTemplatesEnterClosesWhenEmpty() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    _ = switcher.handle(.left)
+    #expect(switcher.handle(.enter) == .close)
+    #expect(switcher.mode == .closed)
+}
+
+@Test func switcherDraftVisibility() {
+    let draft = [LayoutTemplate.Slot(bundleID: "com.example", action: .leftHalf)]
+    var switcher = Switcher()
+    _ = switcher.open(fixture, draft: draft)
+    #expect(switcher.draft == draft)
+
+    _ = switcher.open(fixture, draft: [])
+    #expect(switcher.draft == nil)
+
+    _ = switcher.open(fixture, templates: [LayoutTemplate(name: "Saved", slots: draft)], draft: draft)
+    #expect(switcher.draft == nil)
+
+    _ = switcher.open(fixture, draft: draft)
+    #expect(switcher.handle(.templatesChanged([LayoutTemplate(name: "Saved", slots: draft)])) == .update)
+    #expect(switcher.draft == nil)
 }

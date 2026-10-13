@@ -45,3 +45,20 @@ import Testing
     Settings.defaults.removePersistentDomain(forName: "ZiranTests")
     Settings.defaults = .standard
 }
+
+@MainActor @Test func layoutTemplatesRoundTrip() {
+    Settings.defaults = UserDefaults(suiteName: "ZiranTests")!
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
+    let templates = [
+        LayoutTemplate(
+            name: "Work",
+            slots: [
+                .init(bundleID: "com.example.editor", action: .leftHalf),
+                .init(bundleID: "com.example.browser", action: .rightHalf),
+            ])
+    ]
+    Settings.layoutTemplates = templates
+    #expect(Settings.layoutTemplates == templates)
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
+    Settings.defaults = .standard
+}

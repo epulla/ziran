@@ -2,7 +2,38 @@ import CoreGraphics
 
 // Frames use Accessibility coordinates: origin at the top-left of the primary screen, y grows downward.
 enum Layout {
-    enum Action: Equatable { case leftHalf, rightHalf, topHalf, bottomHalf, topLeft, topRight, bottomLeft, bottomRight, maximize, center }
+    enum Action: String, Codable, Equatable { case leftHalf, rightHalf, topHalf, bottomHalf, topLeft, topRight, bottomLeft, bottomRight, maximize, center }
+
+    static func snapAction(for window: CGRect, in screen: CGRect) -> Action {
+        let actions: [Action] = [.leftHalf, .rightHalf, .topHalf, .bottomHalf, .topLeft, .topRight, .bottomLeft, .bottomRight, .maximize]
+        return actions.max { lhs, rhs in
+            func intersectionOverUnion(_ action: Action) -> CGFloat {
+                let candidate = frame(action, current: .zero, in: screen)
+                let intersection = candidate.intersection(window)
+                let intersectionArea = max(0, intersection.width * intersection.height)
+                let unionArea = candidate.width * candidate.height + window.width * window.height - intersectionArea
+                return unionArea > 0 ? intersectionArea / unionArea : 0
+            }
+            return intersectionOverUnion(lhs) < intersectionOverUnion(rhs)
+        }!
+    }
+
+    static func templateSlots(_ windows: [(String, CGRect)], in screen: CGRect) -> [LayoutTemplate.Slot] {
+        var seen = Set<String>()
+        var kept: [(LayoutTemplate.Slot, CGRect)] = []
+        for (bundleID, window) in windows where seen.insert(bundleID).inserted {
+            let action = snapAction(for: window, in: screen)
+            let slot = frame(action, current: .zero, in: screen)
+            guard
+                !kept.contains(where: {
+                    let overlap = $0.1.intersection(slot)
+                    return overlap.width > 0 && overlap.height > 0
+                })
+            else { continue }
+            kept.append((LayoutTemplate.Slot(bundleID: bundleID, action: action), slot))
+        }
+        return kept.map(\.0)
+    }
 
     static func frame(_ action: Action, current: CGRect, in screen: CGRect) -> CGRect {
         let halfWidth = screen.width / 2
@@ -46,9 +77,9 @@ enum Layout {
         max(1, min(7, count, Int((available + spacing) / (tile + spacing))))
     }
 
-    // Centers the panel, sliding left only when quick nav would not fit on the right.
-    static func panelX(current: CGFloat?, width: CGFloat, quickNavWidth: CGFloat, spacing: CGFloat, area: CGRect) -> CGFloat {
-        min(current ?? area.midX - width / 2, area.maxX - spacing - quickNavWidth - width)
+    // Centers the panel, sliding so both side boxes fit; quick nav on the right wins when there is room for only one.
+    static func panelX(current: CGFloat?, width: CGFloat, sideWidth: CGFloat, spacing: CGFloat, area: CGRect) -> CGFloat {
+        min(max(current ?? area.midX - width / 2, area.minX + spacing + sideWidth), area.maxX - spacing - sideWidth - width)
     }
 
     private static func rounded(_ rect: CGRect) -> CGRect {

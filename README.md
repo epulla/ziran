@@ -46,13 +46,24 @@ Pins last until Ziran quits and sort first in the dropdown and list.
 
 Bookmarks for apps, folders, files and web pages, shown in a box beside the strip and dropdown. Running apps come forward, quit apps launch, files open in their app, and pages open in your browser. Bookmarks whose file or app no longer exists are removed.
 
-| Key (hold ⌥) | Result |
+| Key | Result |
 | --- | --- |
 | − in strip/dropdown | Bookmark the selected window, or remove it if saved; the box names what gets saved |
-| ⇧1–9 | Open Nth bookmark |
+| ⌘1–9 while switcher is open (except list/search) | Open Nth bookmark |
 | → in strip/dropdown | Move into quick nav; ↑↓ move, ↩ or release ⌥ opens, − removes, ← goes back |
 
 ⌥− saves the window's document when the app reports one (a browser's page, a terminal's working folder, an open file), the folder for a Finder window, and otherwise the app. Finder folders need a one-time permission for Ziran to control Finder.
+
+### Templates
+
+Saved window layouts, shown in a box on the left of the strip and dropdown. A template places each app's window into a half, quarter, or full screen on the display the switcher is on, launching apps that aren't running. The box shows a preview of each template, plus a dimmed preview of the current layout when it isn't saved yet.
+
+| Key | Result |
+| --- | --- |
+| ← in strip/dropdown | Move into templates; ↑↓ move, ↩ or release ⌥ applies, → goes back |
+| = in templates | Save the visible windows on this display as a template, named after their apps |
+| − in templates | Remove the selected template |
+| ⇧1–9 while switcher is open (except list/search) | Apply Nth template |
 
 ### Window shortcuts
 

@@ -97,7 +97,7 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
     private func quickNavController() -> NSViewController {
         let controller = NSViewController()
         let title = sectionTitle("Quick nav")
-        let caption = secondaryLabel("Open items with ⌥⇧1–9 in the switcher. ⌥− there adds the selected window.")
+        let caption = secondaryLabel("Open items with ⌘1–9 in the switcher. ⌥− there adds the selected window.")
         quickNavTable.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("item")))
         quickNavTable.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         quickNavTable.headerView = nil
@@ -154,7 +154,7 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
         let icon = NSImageView(image: url.quickNavIcon)
         icon.widthAnchor.constraint(equalToConstant: 18).isActive = true
         icon.heightAnchor.constraint(equalToConstant: 18).isActive = true
-        let label = NSTextField(labelWithString: row < 9 ? "⇧\(row + 1)   \(url.quickNavName)" : url.quickNavName)
+        let label = NSTextField(labelWithString: row < 9 ? "⌘\(row + 1)   \(url.quickNavName)" : url.quickNavName)
         label.lineBreakMode = .byTruncatingMiddle
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         let cell = NSStackView(views: [icon, label])

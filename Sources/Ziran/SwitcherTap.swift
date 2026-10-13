@@ -73,7 +73,9 @@ final class SwitcherTap {
                     previousApp = NSWorkspace.shared.frontmostApplication
                     if let pid = previousApp?.processIdentifier {
                         if let focused = AX.focusedWindow() { tracker.touch(focused) }
-                        run(switcher.open(tracker.snapshot(), app: pid, quickNav: Settings.quickNav))
+                        let snapshot = tracker.snapshot()
+                        let draft = templateDisplay().map { templateSlots(snapshot, in: $0) } ?? []
+                        run(switcher.open(snapshot, app: pid, quickNav: Settings.quickNav, templates: Settings.layoutTemplates, draft: draft))
                     }
                 } else {
                     run(switcher.handle(flags.contains(.maskShift) ? .previousWindow : .nextWindow))
@@ -84,19 +86,27 @@ final class SwitcherTap {
                 if switcher.mode == .closed {
                     previousApp = NSWorkspace.shared.frontmostApplication
                     if let focused = AX.focusedWindow() { tracker.touch(focused) }
-                    run(switcher.open(tracker.snapshot(), quickNav: Settings.quickNav))
+                    let snapshot = tracker.snapshot()
+                    let draft = templateDisplay().map { templateSlots(snapshot, in: $0) } ?? []
+                    run(switcher.open(snapshot, quickNav: Settings.quickNav, templates: Settings.layoutTemplates, draft: draft))
                 } else if switcher.mode == .strip || switcher.mode == .dropdown {
                     run(switcher.handle(flags.contains(.maskShift) ? .shiftTab : .tab))
                 }
                 return true
             }
-            if switcher.mode != .closed && switcher.mode != .list && alternate && flags.contains(.maskShift) && !modifier,
+            if switcher.mode != .closed && switcher.mode != .list && flags.contains(.maskShift) && !modifier,
                 let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
-                run(switcher.handle(.openQuickNav(index)))
+                run(switcher.handle(.applyTemplate(index)))
                 return true
             }
-            if switcher.mode != .closed && (flags.contains(.maskCommand) || (switcher.mode != .list && flags.contains(.maskAlternate))),
+            if switcher.mode != .closed && flags.contains(.maskCommand),
+                let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
+            {
+                run(switcher.handle(switcher.mode == .list ? .jump(index) : .openQuickNav(index)))
+                return true
+            }
+            if switcher.mode != .closed && switcher.mode != .list && (flags.contains(.maskControl) || alternate),
                 let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
                 run(switcher.handle(.jump(index)))
@@ -118,7 +128,7 @@ final class SwitcherTap {
                 if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
                 return true
             }
-            guard switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav else { return false }
+            guard switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav || switcher.mode == .templates else { return false }
             let key: Switcher.Key?
             switch keycode {
             case 126: key = .up
@@ -130,13 +140,14 @@ final class SwitcherTap {
             case 53: key = .escape
             case 12 where !modifier: key = .quitApp
             case 24 where !modifier:
+                if switcher.mode == .templates { run(switcher.handle(.saveTemplate)); return true }
                 if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
                 return true
             default: key = nil
             }
             if let key { run(switcher.handle(key)); return true }
         } else if type == .flagsChanged && !flags.contains(.maskAlternate)
-            && (switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav)
+            && (switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav || switcher.mode == .templates)
         {
             run(switcher.handle(.optionUp))
             return true
@@ -192,7 +203,83 @@ final class SwitcherTap {
         case .removeBookmark(let url):
             Settings.quickNav.removeAll { $0 == url }
             run(switcher.handle(.quickNavChanged(Settings.quickNav)))
+        case .saveTemplate:
+            saveTemplate()
+        case .removeTemplate(let template):
+            Settings.layoutTemplates.removeAll { $0 == template }
+            run(switcher.handle(.templatesChanged(Settings.layoutTemplates)))
+        case .applyTemplate(let template):
+            apply(template)
         case .none: break
+        }
+    }
+
+    private func templateDisplay() -> CGRect? {
+        guard let screen = panel.screen ?? NSScreen.main, let primaryMaxY = NSScreen.screens.first?.frame.maxY else { return nil }
+        return AX.flip(screen.visibleFrame, primaryMaxY: primaryMaxY)
+    }
+
+    private func saveTemplate() {
+        guard let display = templateDisplay() else { NSSound.beep(); return }
+        let snapshot = tracker.snapshot()
+        let slots = templateSlots(snapshot, in: display)
+        guard !slots.isEmpty else { NSSound.beep(); return }
+        if let index = Settings.layoutTemplates.firstIndex(where: { Set($0.slots) == Set(slots) }) {
+            NSSound.beep()
+            run(switcher.handle(.selectTemplate(index)))
+            return
+        }
+        let names = snapshot.filter { window in slots.contains { $0.bundleID == window.bundleId } }
+        let template = LayoutTemplate(
+            name: slots.compactMap { slot in names.first { $0.bundleId == slot.bundleID }?.appName }.joined(separator: " · "), slots: slots)
+        Settings.layoutTemplates.append(template)
+        run(switcher.handle(.templatesChanged(Settings.layoutTemplates)))
+    }
+
+    private func templateSlots(_ snapshot: [WindowInfo], in display: CGRect) -> [LayoutTemplate.Slot] {
+        let windows = snapshot.sorted { $0.zOrder < $1.zOrder }.compactMap { window -> (String, CGRect)? in
+            guard !window.isMinimized, let frame = window.frame,
+                display.contains(CGPoint(x: frame.midX, y: frame.midY))
+            else { return nil }
+            return (window.bundleId, frame)
+        }
+        return Layout.templateSlots(windows, in: display)
+    }
+
+    private func apply(_ template: LayoutTemplate) {
+        guard let display = templateDisplay() else { return }
+        panel.hide()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            var placed: [AXUIElement] = []
+            for slot in template.slots {
+                let deadline = Date().addingTimeInterval(5)
+                var app = NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == slot.bundleID }
+                if app == nil {
+                    if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: slot.bundleID) {
+                        app = await withCheckedContinuation { continuation in
+                            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { running, _ in
+                                continuation.resume(returning: running)
+                            }
+                        }
+                    }
+                }
+                guard let app else { continue }
+                while Date() < deadline {
+                    if let window = tracker.snapshot().first(where: { $0.pid == app.processIdentifier && !$0.isMinimized }),
+                        let element = tracker.element(window.id)
+                    {
+                        AX.setFrame(element, Layout.frame(slot.action, current: .zero, in: display))
+                        placed.append(element)
+                        break
+                    }
+                    try? await Task.sleep(for: .milliseconds(min(100, max(1, Int(deadline.timeIntervalSinceNow * 1000)))))
+                }
+            }
+            for element in placed.reversed() {
+                AX.focus(element)
+                tracker.touch(element)
+            }
         }
     }
 
