@@ -162,7 +162,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         } else {
             let quickNavBox = quickNavBox(s, bookmarkHint: bookmarkHint, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
             showSide(quickNavPanel, box: quickNavBox, x: frame.maxX + Self.quickNavSpacing)
-            let templates = templatesBox(s, fontSize: fontSize, scale: scale)
+            let templates = templatesBox(s, scale: scale)
             let size = templates.box.fittingSize
             // Each render rebuilds the scroll view, so carry the scroll position over.
             let offset = templatesScroll?.contentView.bounds.origin ?? .zero
@@ -441,7 +441,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     // Compact (previews and ⇧N) until ← enters the box, then wide enough to show each template's app names under its preview.
-    private func templatesBox(_ s: Switcher, fontSize: CGFloat, scale: CGFloat) -> (box: NSView, selected: NSView?) {
+    private func templatesBox(_ s: Switcher, scale: CGFloat) -> (box: NSView, selected: NSView?) {
         let expanded = s.mode == .templates
         let compactWidth = (Settings.iconSize * 1.6).rounded() + (24 * scale).rounded() + 3 * Self.gap
         let rowWidth = expanded ? max((Self.quickNavBaseWidth * scale).rounded() - 2 * Self.gap, compactWidth) : compactWidth
@@ -479,7 +479,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             content.orientation = .vertical; content.alignment = .leading; content.spacing = 4 * scale
             if expanded {
                 let label = NSTextField(wrappingLabelWithString: template.name)
-                label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
+                label.font = .systemFont(ofSize: 11 * scale, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
                 label.preferredMaxLayoutWidth = rowWidth - 2 * Self.gap
                 content.addArrangedSubview(label)
             }
