@@ -434,15 +434,23 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                 icon.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap), icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
                 label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: Self.gap),
             ])
+            let remove = SymbolButton("xmark.circle.fill", label: "Remove bookmark", size: 14 * scale) { [onKey] in onKey(.removeQuickNav(index)) }
+            if selected { remove.contentTintColor = .white }
+            row.addSubview(remove)
+            row.hoverView = remove
+            NSLayoutConstraint.activate([
+                label.trailingAnchor.constraint(lessThanOrEqualTo: remove.leadingAnchor, constant: -Self.gap),
+                remove.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            ])
             if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⌘") {
                 row.addSubview(badge)
                 NSLayoutConstraint.activate([
-                    label.trailingAnchor.constraint(lessThanOrEqualTo: badge.leadingAnchor, constant: -Self.gap),
+                    remove.trailingAnchor.constraint(equalTo: badge.leadingAnchor, constant: -Self.gap),
                     badge.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -Self.gap),
                     badge.centerYAnchor.constraint(equalTo: row.centerYAnchor),
                 ])
             } else {
-                label.trailingAnchor.constraint(lessThanOrEqualTo: row.trailingAnchor, constant: -Self.gap).isActive = true
+                remove.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -Self.gap).isActive = true
             }
             box.addArrangedSubview(row)
         }
@@ -474,6 +482,13 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         title.widthAnchor.constraint(equalToConstant: rowWidth).isActive = true
         box.addArrangedSubview(title)
         box.setCustomSpacing(Self.gap, after: title)
+        if s.draft != nil {
+            let save = SymbolButton("plus.circle.fill", label: "Save layout", size: 13 * scale) { [onKey] in onKey(.saveTemplate) }
+            title.addSubview(save)
+            NSLayoutConstraint.activate([
+                save.trailingAnchor.constraint(equalTo: title.trailingAnchor), save.centerYAnchor.constraint(equalTo: title.centerYAnchor),
+            ])
+        }
         if let draft = s.draft {
             let preview = templatePreview(draft)
             preview.alphaValue = 0.5
@@ -499,6 +514,13 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                     badge.bottomAnchor.constraint(equalTo: preview.bottomAnchor, constant: -(2 * scale).rounded()),
                 ])
             }
+            let remove = SymbolButton("xmark.circle.fill", label: "Remove template", size: 14 * scale) { [onKey] in onKey(.removeTemplate(index)) }
+            preview.addSubview(remove)
+            NSLayoutConstraint.activate([
+                remove.topAnchor.constraint(equalTo: preview.topAnchor, constant: (3 * scale).rounded()),
+                remove.trailingAnchor.constraint(equalTo: preview.trailingAnchor, constant: -(3 * scale).rounded()),
+            ])
+            row.hoverView = remove
             let content = NSStackView(views: [preview])
             content.orientation = .vertical; content.alignment = .leading; content.spacing = 4 * scale
             if expanded {
@@ -637,6 +659,38 @@ private final class RowView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) { click.forEach(onKey) }
+
+    // Shown only while the pointer is over the row.
+    var hoverView: NSView? {
+        didSet {
+            hoverView?.isHidden = true
+            addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect], owner: self))
+        }
+    }
+
+    override func mouseEntered(with event: NSEvent) { hoverView?.isHidden = false }
+    // Rows are rebuilt on every render, so a pointer already inside never gets mouseEntered.
+    override func mouseMoved(with event: NSEvent) { hoverView?.isHidden = false }
+    override func mouseExited(with event: NSEvent) { hoverView?.isHidden = true }
+}
+
+@MainActor
+private final class SymbolButton: NSImageView {
+    private let onClick: () -> Void
+
+    init(_ symbol: String, label: String, size: CGFloat, onClick: @escaping () -> Void) {
+        self.onClick = onClick
+        super.init(frame: .zero)
+        image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?.withSymbolConfiguration(.init(pointSize: size, weight: .regular))
+        contentTintColor = .secondaryLabelColor
+        translatesAutoresizingMaskIntoConstraints = false
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) { onClick() }
 }
 
 // Keeps scrolled content anchored to the top instead of AppKit's default bottom.
