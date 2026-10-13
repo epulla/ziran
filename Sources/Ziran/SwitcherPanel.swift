@@ -443,7 +443,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     // Sized by the preview in both states; app names appear under each preview, wrapping, only once ← enters the box.
     private func templatesBox(_ s: Switcher, scale: CGFloat) -> (box: NSView, selected: NSView?) {
         let expanded = s.mode == .templates
-        let rowWidth = (Settings.iconSize * 1.6).rounded() + (24 * scale).rounded() + 3 * Self.gap
+        // The floor keeps the footer hints whole at the smallest icon size.
+        let rowWidth = max((Settings.iconSize * 1.6).rounded() + 2 * Self.gap, (110 * scale).rounded())
         var selectedRow: NSView?
         let box = NSStackView()
         box.orientation = .vertical; box.alignment = .leading; box.spacing = 2
@@ -471,10 +472,15 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             row.layer?.cornerRadius = 8 * scale
             row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
             if selected { selectedRow = row }
-            let top = NSStackView(views: [templatePreview(template.slots)])
-            top.spacing = Self.gap
-            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") { top.addArrangedSubview(badge) }
-            let content = NSStackView(views: [top])
+            let preview = templatePreview(template.slots)
+            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") {
+                preview.addSubview(badge)
+                NSLayoutConstraint.activate([
+                    badge.trailingAnchor.constraint(equalTo: preview.trailingAnchor, constant: -(4 * scale).rounded()),
+                    badge.bottomAnchor.constraint(equalTo: preview.bottomAnchor, constant: -(2 * scale).rounded()),
+                ])
+            }
+            let content = NSStackView(views: [preview])
             content.orientation = .vertical; content.alignment = .leading; content.spacing = 4 * scale
             if expanded {
                 let label = NSTextField(wrappingLabelWithString: template.name)
