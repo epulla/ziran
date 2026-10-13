@@ -58,6 +58,12 @@ final class WindowTracker {
         let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let screen = info.compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
         let zOrder = info.compactMap { $0[kCGWindowLayer as String] as? Int == 0 ? $0[kCGWindowNumber as String] as? CGWindowID : nil }
+        let windowInfo = Dictionary(
+            uniqueKeysWithValues: info.enumerated().compactMap { index, item -> (CGWindowID, (CGRect?, Int))? in
+                guard let id = item[kCGWindowNumber as String] as? CGWindowID else { return nil }
+                let frame = (item[kCGWindowBounds as String] as? NSDictionary).flatMap { CGRect(dictionaryRepresentation: $0) }
+                return (id, (frame, index))
+            })
         let onScreen = Set(screen)
         var windows: [WindowInfo] = []
         var current: [CGWindowID: AXUIElement] = [:]
@@ -65,10 +71,11 @@ final class WindowTracker {
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular && app.processIdentifier != ownPID {
             for el in AX.windows(pid: app.processIdentifier) {
                 guard let id = AX.windowID(el), onScreen.contains(id) || AX.isMinimized(el) else { continue }
+                let window = windowInfo[id]
                 windows.append(
                     WindowInfo(
                         id: id, pid: app.processIdentifier, bundleId: app.bundleIdentifier ?? "", appName: app.localizedName ?? "", title: AX.title(el),
-                        isMinimized: AX.isMinimized(el)))
+                        isMinimized: AX.isMinimized(el), frame: window?.0, zOrder: window?.1 ?? .max))
                 current[id] = el
             }
         }

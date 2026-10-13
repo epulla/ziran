@@ -211,8 +211,9 @@ final class SwitcherTap {
 
     private func saveTemplate() {
         guard let display = templateDisplay() else { NSSound.beep(); return }
-        let windows = tracker.snapshot().compactMap { window -> (String, CGRect)? in
-            guard !window.isMinimized, let element = tracker.element(window.id), let frame = AX.frame(element),
+        let snapshot = tracker.snapshot()
+        let windows = snapshot.sorted { $0.zOrder < $1.zOrder }.compactMap { window -> (String, CGRect)? in
+            guard !window.isMinimized, let frame = window.frame,
                 display.contains(CGPoint(x: frame.midX, y: frame.midY))
             else { return nil }
             return (window.bundleId, frame)
@@ -224,7 +225,7 @@ final class SwitcherTap {
             run(switcher.handle(.selectTemplate(index)))
             return
         }
-        let names = tracker.snapshot().filter { window in slots.contains { $0.bundleID == window.bundleId } }
+        let names = snapshot.filter { window in slots.contains { $0.bundleID == window.bundleId } }
         let template = LayoutTemplate(
             name: slots.compactMap { slot in names.first { $0.bundleId == slot.bundleID }?.appName }.joined(separator: " · "), slots: slots)
         Settings.layoutTemplates.append(template)
