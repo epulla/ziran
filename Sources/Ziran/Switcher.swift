@@ -7,7 +7,7 @@ struct Switcher {
     enum Key: Equatable {
         case tab, shiftTab, nextWindow, previousWindow, up, down, left, right, enter, escape, optionUp, closeWindow, quitApp, bookmark,
             windowClosed(CGWindowID), appQuit(pid_t), query(String), select(Int), pin(CGWindowID), jump(Int), openQuickNav(Int), quickNavChanged([URL]),
-            applyTemplate(Int), selectTemplate(Int), templatesChanged([LayoutTemplate]), saveTemplate
+            applyTemplate(Int), selectTemplate(Int), templatesChanged([LayoutTemplate]), saveTemplate, removeTemplate(Int), removeQuickNav(Int)
     }
     enum Effect: Equatable {
         case none, update, focus(WindowInfo), close, closeWindow(WindowInfo), closeWindows([WindowInfo]), quitApp(pid_t), open(URL), toggleBookmark(WindowInfo),
@@ -80,6 +80,15 @@ struct Switcher {
             templatesRow = min(templatesRow, max(0, values.count - 1))
             return .update
         }
+        if key == .saveTemplate, mode != .list { return .saveTemplate }
+        if case .removeTemplate(let index) = key {
+            guard mode != .list, templates.indices.contains(index) else { return .none }
+            return .removeTemplate(templates[index])
+        }
+        if case .removeQuickNav(let index) = key {
+            guard mode != .list, quickNav.indices.contains(index) else { return .none }
+            return .removeBookmark(quickNav[index])
+        }
         if case .applyTemplate(let index) = key {
             guard mode != .list, templates.indices.contains(index) else { return .none }
             return finish(.applyTemplate(templates[index]))
@@ -91,14 +100,14 @@ struct Switcher {
             case .right: mode = templatesReturn; return .update
             case .enter, .optionUp: return templates.indices.contains(templatesRow) ? finish(.applyTemplate(templates[templatesRow])) : close()
             case .saveTemplate: return .saveTemplate
-            case .bookmark: return templates.indices.contains(templatesRow) ? .removeTemplate(templates[templatesRow]) : .none
+            case .bookmark: return handle(.removeTemplate(templatesRow))
             case .selectTemplate(let index):
                 guard templates.indices.contains(index) else { return .none }
                 templatesRow = index
                 return .update
             case .escape: return close()
             case .tab, .shiftTab, .nextWindow, .previousWindow, .left, .closeWindow, .quitApp, .windowClosed, .appQuit, .query, .pin, .jump,
-                .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .select:
+                .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .select, .removeTemplate, .removeQuickNav:
                 return .none
             }
         }
@@ -112,10 +121,10 @@ struct Switcher {
             case .down: quickNavRow = min(quickNavRow + 1, quickNav.count - 1); return .update
             case .left: mode = quickNavReturn; return .update
             case .enter, .optionUp: return quickNav.indices.contains(quickNavRow) ? finish(.open(quickNav[quickNavRow])) : close()
-            case .bookmark: return quickNav.indices.contains(quickNavRow) ? .removeBookmark(quickNav[quickNavRow]) : .none
+            case .bookmark: return handle(.removeQuickNav(quickNavRow))
             case .escape: return close()
             case .tab, .shiftTab, .nextWindow, .previousWindow, .right, .closeWindow, .quitApp, .windowClosed, .appQuit, .query, .select, .pin, .jump,
-                .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .saveTemplate, .selectTemplate:
+                .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .saveTemplate, .selectTemplate, .removeTemplate, .removeQuickNav:
                 return .none
             }
         }
@@ -195,7 +204,8 @@ struct Switcher {
                 guard let selection else { return close() }
                 return finish(.focus(selection))
             case .tab, .shiftTab, .nextWindow, .previousWindow, .left, .right, .optionUp, .escape, .closeWindow, .quitApp, .bookmark, .windowClosed, .appQuit,
-                .select, .pin, .jump, .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .saveTemplate, .selectTemplate:
+                .select, .pin, .jump, .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .saveTemplate, .selectTemplate, .removeTemplate,
+                .removeQuickNav:
                 return .none
             }
         }
@@ -228,7 +238,7 @@ struct Switcher {
             return .update
         case .bookmark: return selection.map { .toggleBookmark($0) } ?? .none
         case .query, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump, .openQuickNav, .quickNavChanged, .applyTemplate,
-            .templatesChanged, .saveTemplate, .selectTemplate:
+            .templatesChanged, .saveTemplate, .selectTemplate, .removeTemplate, .removeQuickNav:
             return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
