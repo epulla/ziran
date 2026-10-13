@@ -397,16 +397,21 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         box.addArrangedSubview(title)
         box.setCustomSpacing(Self.gap, after: title)
         if s.mode != .quickNav, let bookmark {
-            let icon = iconView(bookmark.quickNavIcon, size: 28 * scale)
-            let name = NSTextField(labelWithString: bookmark.quickNavName)
-            name.font = .systemFont(ofSize: fontSize)
-            name.lineBreakMode = .byTruncatingMiddle
-            name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            let preview = NSStackView(views: [icon, name])
-            preview.spacing = Self.gap
-            preview.alphaValue = 0.5
-            let row = NSStackView(views: [preview, hint(s.quickNav.contains(bookmark) ? "− remove" : "− bookmark", size: 11 * scale)])
+            let saved = s.quickNav.contains(bookmark)
+            let row = NSStackView(views: [hint(saved ? "− remove" : "− bookmark", size: 11 * scale)])
             row.orientation = .vertical; row.alignment = .leading; row.spacing = 4 * scale
+            // A saved bookmark is already listed below, so only the hint is shown.
+            if !saved {
+                let icon = iconView(bookmark.quickNavIcon, size: 28 * scale)
+                let name = NSTextField(labelWithString: bookmark.quickNavName)
+                name.font = .systemFont(ofSize: fontSize)
+                name.lineBreakMode = .byTruncatingMiddle
+                name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+                let preview = NSStackView(views: [icon, name])
+                preview.spacing = Self.gap
+                preview.alphaValue = 0.5
+                row.insertArrangedSubview(preview, at: 0)
+            }
             row.edgeInsets = NSEdgeInsets(top: 0, left: Self.gap, bottom: 0, right: Self.gap)
             row.widthAnchor.constraint(equalToConstant: width - 2 * Self.gap).isActive = true
             box.addArrangedSubview(row)
