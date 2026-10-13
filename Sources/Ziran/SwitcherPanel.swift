@@ -684,13 +684,36 @@ private final class SymbolButton: NSImageView {
         image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?.withSymbolConfiguration(.init(pointSize: size, weight: .regular))
         contentTintColor = .secondaryLabelColor
         translatesAutoresizingMaskIntoConstraints = false
+        // Cursor rects only work in the key window, and these panels never become key.
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
+    private var hovering = false
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) { onClick() }
+
+    override func mouseEntered(with event: NSEvent) {
+        hovering = true
+        NSCursor.pointingHand.set()
+    }
+
+    override func mouseExited(with event: NSEvent) { resetCursor() }
+
+    // Hidden or rebuilt buttons get no mouseExited.
+    override func viewDidHide() { resetCursor() }
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil { resetCursor() }
+    }
+
+    private func resetCursor() {
+        if hovering { NSCursor.arrow.set() }
+        hovering = false
+    }
 }
 
 // Keeps scrolled content anchored to the top instead of AppKit's default bottom.
