@@ -8,6 +8,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private var currentIndex = 0
     private var icons: [pid_t: NSImage] = [:]
     private var bundleIcons: [String: NSImage] = [:]
+    private var templatesScroll: NSScrollView?
     private var launchObserver: NSObjectProtocol?
     // One padding for every panel edge, row inset, and gap between sections, so all views line up.
     private static let gap: CGFloat = 8
@@ -161,8 +162,34 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         } else {
             let quickNavBox = quickNavBox(s, bookmarkHint: bookmarkHint, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
             showSide(quickNavPanel, box: quickNavBox, x: frame.maxX + Self.quickNavSpacing)
-            let templatesBox = templatesBox(s, fontSize: fontSize, scale: scale)
-            showSide(templatesPanel, box: templatesBox, x: frame.minX - Self.quickNavSpacing - templatesBox.fittingSize.width - 2 * Self.gap)
+            let templates = templatesBox(s, fontSize: fontSize, scale: scale)
+            let size = templates.box.fittingSize
+            // Each render rebuilds the scroll view, so carry the scroll position over.
+            let offset = templatesScroll?.contentView.bounds.origin ?? .zero
+            let scroll = NSScrollView()
+            scroll.drawsBackground = false
+            scroll.hasVerticalScroller = true
+            scroll.autohidesScrollers = true
+            let document = FlippedView()
+            document.addSubview(templates.box)
+            scroll.documentView = document
+            for view in [templates.box, document] { view.translatesAutoresizingMaskIntoConstraints = false }
+            NSLayoutConstraint.activate([
+                templates.box.leadingAnchor.constraint(equalTo: document.leadingAnchor),
+                templates.box.trailingAnchor.constraint(equalTo: document.trailingAnchor),
+                templates.box.topAnchor.constraint(equalTo: document.topAnchor),
+                templates.box.bottomAnchor.constraint(equalTo: document.bottomAnchor),
+                document.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
+                document.trailingAnchor.constraint(equalTo: scroll.contentView.trailingAnchor),
+                document.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
+                scroll.widthAnchor.constraint(equalToConstant: size.width),
+                scroll.heightAnchor.constraint(equalToConstant: min(size.height, frame.maxY - area.minY - 2 * Self.gap)),
+            ])
+            templatesScroll = scroll
+            showSide(templatesPanel, box: scroll, x: frame.minX - Self.quickNavSpacing - size.width - 2 * Self.gap)
+            scroll.layoutSubtreeIfNeeded()
+            document.scroll(offset)
+            if let selected = templates.selected { selected.scrollToVisible(selected.bounds) }
         }
         if s.mode == .list {
             makeKey()
@@ -219,11 +246,11 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     // A miniature screen with each app's icon drawn in the slot it fills.
-    private func templatePreview(_ slots: [LayoutTemplate.Slot], scale: CGFloat) -> NSView {
-        let screen = CGRect(x: 0, y: 0, width: (48 * scale).rounded(), height: (30 * scale).rounded())
+    private func templatePreview(_ slots: [LayoutTemplate.Slot]) -> NSView {
+        let screen = CGRect(x: 0, y: 0, width: (Settings.iconSize * 1.6).rounded(), height: Settings.iconSize)
         let preview = NSView()
         preview.wantsLayer = true
-        preview.layer?.cornerRadius = 3 * scale
+        preview.layer?.cornerRadius = (screen.height * 0.08).rounded()
         preview.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.08).cgColor
         preview.translatesAutoresizingMaskIntoConstraints = false
         preview.widthAnchor.constraint(equalToConstant: screen.width).isActive = true
@@ -414,9 +441,11 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     // Compact (previews and ⇧N) until ← enters the box, then wide enough to show each template's app names under its preview.
-    private func templatesBox(_ s: Switcher, fontSize: CGFloat, scale: CGFloat) -> NSView {
+    private func templatesBox(_ s: Switcher, fontSize: CGFloat, scale: CGFloat) -> (box: NSView, selected: NSView?) {
         let expanded = s.mode == .templates
-        let rowWidth = ((expanded ? Self.quickNavBaseWidth : 100) * scale).rounded() - 2 * Self.gap
+        let compactWidth = (Settings.iconSize * 1.6).rounded() + (24 * scale).rounded() + 3 * Self.gap
+        let rowWidth = expanded ? max((Self.quickNavBaseWidth * scale).rounded() - 2 * Self.gap, compactWidth) : compactWidth
+        var selectedRow: NSView?
         let box = NSStackView()
         box.orientation = .vertical; box.alignment = .leading; box.spacing = 2
         let title = NSTextField(labelWithString: "Templates")
@@ -427,7 +456,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         box.addArrangedSubview(title)
         box.setCustomSpacing(Self.gap, after: title)
         if let draft = s.draft {
-            let preview = templatePreview(draft, scale: scale)
+            let preview = templatePreview(draft)
             preview.alphaValue = 0.5
             let draftHint = hint(expanded ? "= save this layout" : "← then = save", size: 11 * scale)
             let row = NSStackView(views: [preview, draftHint])
@@ -442,7 +471,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             row.wantsLayer = true
             row.layer?.cornerRadius = 8 * scale
             row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
-            let top = NSStackView(views: [templatePreview(template.slots, scale: scale)])
+            if selected { selectedRow = row }
+            let top = NSStackView(views: [templatePreview(template.slots)])
             top.spacing = Self.gap
             if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") { top.addArrangedSubview(badge) }
             let content = NSStackView(views: [top])
@@ -472,7 +502,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             label.alignment = .center
             box.addArrangedSubview(label)
         }
-        return box
+        return (box, selectedRow)
     }
 
     private func badge(_ index: Int, size: CGFloat, selected: Bool, prefix: String = "") -> NSView? {
@@ -580,6 +610,11 @@ private final class RowView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) { click.forEach(onKey) }
+}
+
+// Keeps scrolled content anchored to the top instead of AppKit's default bottom.
+private final class FlippedView: NSView {
+    override var isFlipped: Bool { true }
 }
 
 @MainActor
