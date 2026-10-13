@@ -157,7 +157,7 @@ final class SwitcherTap {
 
     private func run(_ effect: Switcher.Effect) {
         switch effect {
-        case .update: panel.show(switcher, bookmarkHint: bookmarkHint())
+        case .update: panel.show(switcher, bookmark: bookmarkCandidate())
         case .focus(let window):
             stopClosePoll()
             panel.hide()
@@ -283,15 +283,9 @@ final class SwitcherTap {
         }
     }
 
-    // Tells the user what ⌥− will save before they press it; Finder is named from the title to avoid running AppleScript on every redraw.
-    private func bookmarkHint() -> String? {
+    private func bookmarkCandidate() -> URL? {
         guard switcher.mode == .strip || switcher.mode == .dropdown, let window = switcher.selection else { return nil }
-        guard let url = bookmarkURL(for: window, askFinder: false) else {
-            guard window.bundleId == "com.apple.finder" else { return nil }
-            let saved = Settings.quickNav.contains { $0.hasDirectoryPath && FileManager.default.displayName(atPath: $0.path) == window.title }
-            return "− \(saved ? "remove" : "bookmark") · \(window.title) (folder)"
-        }
-        return "− \(Settings.quickNav.contains(url) ? "remove" : "bookmark") · \(url.quickNavName)"
+        return bookmarkURL(for: window, askFinder: false)
     }
 
     private func bookmarkURL(for window: WindowInfo, askFinder: Bool) -> URL? {
