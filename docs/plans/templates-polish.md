@@ -22,6 +22,6 @@ finally, it'd be nice to have a preview of what it's going to be save as a templ
 ## Tasks
 
 - [x] 1. Frames from the window list: `WindowInfo` carries its frame; save builds slots from snapshot frames in front-to-back order. Check: `make test` passes with updated tests.
-- [ ] 2. Shortcut swap: `⌘1–9` quick nav, `⇧1–9` templates from strip/dropdown/boxes; Preferences labels, README. Check: `make test` passes with Switcher table rows for both keys from strip.
+- [x] 2. Shortcut swap: `⌘1–9` quick nav, `⇧1–9` templates from strip/dropdown/boxes; Preferences labels, README. Check: `make test` passes with Switcher table rows for both keys from strip.
 - [ ] 3. Save draft: switcher holds the draft slots, hidden when empty or matching a template; tap computes it on open. Check: `make test` passes with draft tests.
 - [ ] 4. Panel UI: compact/expanded templates box, names below previews, draft row with hints, badges `⌘N`/`⇧N`, no white outline; delete this plan. Check: `make lint && make test`; manual pass on all four request items.

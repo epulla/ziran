@@ -90,13 +90,19 @@ final class SwitcherTap {
                 }
                 return true
             }
-            if switcher.mode != .closed && switcher.mode != .list && alternate && flags.contains(.maskShift) && !modifier,
+            if switcher.mode != .closed && switcher.mode != .list && flags.contains(.maskShift) && !modifier,
                 let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
-                run(switcher.handle(switcher.mode == .templates ? .applyTemplate(index) : .openQuickNav(index)))
+                run(switcher.handle(.applyTemplate(index)))
                 return true
             }
-            if switcher.mode != .closed && (flags.contains(.maskCommand) || (switcher.mode != .list && flags.contains(.maskAlternate))),
+            if switcher.mode != .closed && flags.contains(.maskCommand),
+                let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
+            {
+                run(switcher.handle(switcher.mode == .list ? .jump(index) : .openQuickNav(index)))
+                return true
+            }
+            if switcher.mode != .closed && switcher.mode != .list && (flags.contains(.maskControl) || alternate),
                 let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
                 run(switcher.handle(.jump(index)))
