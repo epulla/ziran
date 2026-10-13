@@ -330,6 +330,55 @@ func switcherTemplates(keys: [Switcher.Key], expected: Switcher.Effect, mode: Sw
     }
 }
 
+@Test(arguments: [
+    ([Switcher.Key.removeTemplate(1)], Switcher.Mode.strip),
+    ([.left, .down, .removeTemplate(1)], .templates),
+])
+func switcherRemovesTemplateByIndex(keys: [Switcher.Key], expectedMode: Switcher.Mode) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, templates: templates)
+    for key in keys.dropLast() { _ = switcher.handle(key) }
+    #expect(switcher.handle(keys.last!) == .removeTemplate(templates[1]))
+    #expect(switcher.mode == expectedMode)
+    #expect(switcher.handle(.templatesChanged([templates[0]])) == .update)
+    #expect(switcher.templatesRow == 0)
+    #expect(switcher.mode == expectedMode)
+}
+
+@Test(arguments: [
+    ([Switcher.Key.removeQuickNav(1)], Switcher.Mode.strip),
+    ([.right, .down, .removeQuickNav(1)], .quickNav),
+])
+func switcherRemovesQuickNavByIndex(keys: [Switcher.Key], expectedMode: Switcher.Mode) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, quickNav: bookmarks)
+    for key in keys.dropLast() { _ = switcher.handle(key) }
+    #expect(switcher.handle(keys.last!) == .removeBookmark(bookmarks[1]))
+    #expect(switcher.mode == expectedMode)
+    #expect(switcher.handle(.quickNavChanged([bookmarks[0]])) == .update)
+    #expect(switcher.quickNavRow == 0)
+    #expect(switcher.mode == expectedMode)
+}
+
+@Test(arguments: [
+    Switcher.Key.removeTemplate(-1), .removeTemplate(2), .removeQuickNav(-1), .removeQuickNav(2),
+])
+func switcherIgnoresOutOfRangeRemoval(key: Switcher.Key) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, quickNav: bookmarks, templates: templates)
+    #expect(switcher.handle(key) == .none)
+    #expect(switcher.handle(.up) == .update)
+    #expect(switcher.handle(key) == .none)
+    #expect(switcher.mode == .list)
+}
+
+@Test(arguments: [Switcher.Mode.strip, .dropdown])
+func switcherSavesTemplateOutsideTemplates(mode: Switcher.Mode) {
+    var switcher = Switcher()
+    if mode == .dropdown { _ = switcher.open(fixture, app: 1, templates: templates) } else { _ = switcher.open(fixture, templates: templates) }
+    #expect(switcher.handle(.saveTemplate) == .saveTemplate)
+}
+
 @Test func switcherTemplatesChangedClampsRowAndStaysOpenWhenEmpty() {
     var switcher = Switcher()
     _ = switcher.open(fixture, templates: templates)
