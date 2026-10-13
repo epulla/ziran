@@ -396,6 +396,22 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         title.widthAnchor.constraint(equalToConstant: width - 2 * Self.gap).isActive = true
         box.addArrangedSubview(title)
         box.setCustomSpacing(Self.gap, after: title)
+        if s.mode != .quickNav, let bookmark {
+            let icon = iconView(bookmark.quickNavIcon, size: 28 * scale)
+            let name = NSTextField(labelWithString: bookmark.quickNavName)
+            name.font = .systemFont(ofSize: fontSize)
+            name.lineBreakMode = .byTruncatingMiddle
+            name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            let preview = NSStackView(views: [icon, name])
+            preview.spacing = Self.gap
+            preview.alphaValue = 0.5
+            let row = NSStackView(views: [preview, hint(s.quickNav.contains(bookmark) ? "− remove" : "− bookmark", size: 11 * scale)])
+            row.orientation = .vertical; row.alignment = .leading; row.spacing = 4 * scale
+            row.edgeInsets = NSEdgeInsets(top: 0, left: Self.gap, bottom: 0, right: Self.gap)
+            row.widthAnchor.constraint(equalToConstant: width - 2 * Self.gap).isActive = true
+            box.addArrangedSubview(row)
+            box.setCustomSpacing(Self.gap, after: row)
+        }
         for (index, url) in s.quickNav.enumerated() {
             let selected = s.mode == .quickNav && index == s.quickNavRow
             let row = RowView(index: index, onKey: onKey, click: [.openQuickNav(index)])
@@ -433,7 +449,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         let footer =
             s.mode == .quickNav
             ? ["↑↓ move · ← back · − remove", "release ⌥ to open"]
-            : [bookmark.map { "− \(s.quickNav.contains($0) ? "remove" : "bookmark") · \($0.quickNavName)" }].compactMap { $0 }
+            : []
         if !footer.isEmpty, let last = box.arrangedSubviews.last { box.setCustomSpacing(Self.gap, after: last) }
         for line in footer {
             let label = hint(line, size: 11 * scale, width: width - 2 * Self.gap)
