@@ -159,22 +159,10 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             quickNavPanel.orderOut(nil)
             templatesPanel.orderOut(nil)
         } else {
-            let quickNavFooter = s.mode == .quickNav ? ["↑↓ move · ← back · − remove", "release ⌥ to open"] : [bookmarkHint].compactMap { $0 }
-            let quickNavItems = s.quickNav.map { (leading: iconView($0.quickNavIcon, size: 28 * scale), name: $0.quickNavName) }
-            let quickNavBox = sideBox(
-                "Quick nav", items: quickNavItems, selected: s.mode == .quickNav ? s.quickNavRow : nil, click: Switcher.Key.openQuickNav, badges: true,
-                footer: quickNavFooter,
-                fontSize: fontSize, scale: scale, rowHeight: rowHeight)
+            let quickNavBox = quickNavBox(s, bookmarkHint: bookmarkHint, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
             showSide(quickNavPanel, box: quickNavBox, x: frame.maxX + Self.quickNavSpacing)
-            let templatesFooter =
-                s.mode == .templates
-                ? ["↑↓ move · → back · = save · − remove", "release ⌥ to apply"] : s.templates.isEmpty ? ["← then = save layout"] : []
-            let templatesBox = sideBox(
-                "Templates", items: s.templates.map { (leading: templatePreview($0, scale: scale), name: $0.name) },
-                selected: s.mode == .templates ? s.templatesRow : nil,
-                click: Switcher.Key.applyTemplate, badges: s.mode == .templates, footer: templatesFooter, fontSize: fontSize, scale: scale, rowHeight: rowHeight
-            )
-            showSide(templatesPanel, box: templatesBox, x: frame.minX - Self.quickNavSpacing - quickNavWidth)
+            let templatesBox = templatesBox(s, fontSize: fontSize, scale: scale)
+            showSide(templatesPanel, box: templatesBox, x: frame.minX - Self.quickNavSpacing - templatesBox.fittingSize.width - 2 * Self.gap)
         }
         if s.mode == .list {
             makeKey()
@@ -231,17 +219,16 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     // A miniature screen with each app's icon drawn in the slot it fills.
-    private func templatePreview(_ template: LayoutTemplate, scale: CGFloat) -> NSView {
+    private func templatePreview(_ slots: [LayoutTemplate.Slot], scale: CGFloat) -> NSView {
         let screen = CGRect(x: 0, y: 0, width: (48 * scale).rounded(), height: (30 * scale).rounded())
         let preview = NSView()
         preview.wantsLayer = true
         preview.layer?.cornerRadius = 3 * scale
-        preview.layer?.borderWidth = 1
-        preview.layer?.borderColor = NSColor.secondaryLabelColor.cgColor
+        preview.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.08).cgColor
         preview.translatesAutoresizingMaskIntoConstraints = false
         preview.widthAnchor.constraint(equalToConstant: screen.width).isActive = true
         preview.heightAnchor.constraint(equalToConstant: screen.height).isActive = true
-        for slot in template.slots {
+        for slot in slots {
             let rect = Layout.frame(slot.action, current: .zero, in: screen)
             let icon = iconView(bundleIcon(slot.bundleID), size: (min(rect.width, rect.height) * 0.8).rounded())
             preview.addSubview(icon)
@@ -371,28 +358,25 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return row
     }
 
-    private func sideBox(
-        _ heading: String, items: [(leading: NSView, name: String)], selected selectedRow: Int?, click: (Int) -> Switcher.Key, badges: Bool, footer: [String],
-        fontSize: CGFloat,
-        scale: CGFloat, rowHeight: CGFloat
-    ) -> NSView {
+    private func quickNavBox(_ s: Switcher, bookmarkHint: String?, fontSize: CGFloat, scale: CGFloat, rowHeight: CGFloat) -> NSView {
         let width = (Self.quickNavBaseWidth * scale).rounded()
         let box = NSStackView()
         box.orientation = .vertical; box.alignment = .leading; box.spacing = 2
-        let title = NSTextField(labelWithString: heading)
+        let title = NSTextField(labelWithString: "Quick nav")
         title.font = .systemFont(ofSize: 11 * scale, weight: .semibold)
         title.textColor = .secondaryLabelColor
         title.alignment = .center
         title.widthAnchor.constraint(equalToConstant: width - 2 * Self.gap).isActive = true
         box.addArrangedSubview(title)
         box.setCustomSpacing(Self.gap, after: title)
-        for (index, item) in items.enumerated() {
-            let selected = index == selectedRow
-            let row = RowView(index: index, onKey: onKey, click: [click(index)])
+        for (index, url) in s.quickNav.enumerated() {
+            let selected = s.mode == .quickNav && index == s.quickNavRow
+            let row = RowView(index: index, onKey: onKey, click: [.openQuickNav(index)])
             row.wantsLayer = true
             row.layer?.cornerRadius = 8 * scale
             row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
-            let label = NSTextField(labelWithString: item.name)
+            let icon = iconView(url.quickNavIcon, size: 28 * scale)
+            let label = NSTextField(labelWithString: url.quickNavName)
             label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
             label.lineBreakMode = .byTruncatingMiddle
             label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -402,14 +386,12 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                 row.widthAnchor.constraint(equalToConstant: width - 2 * Self.gap), row.heightAnchor.constraint(equalToConstant: rowHeight),
                 label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             ])
-            row.addSubview(item.leading)
-            item.leading.translatesAutoresizingMaskIntoConstraints = false
+            row.addSubview(icon)
             NSLayoutConstraint.activate([
-                item.leading.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap),
-                item.leading.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-                label.leadingAnchor.constraint(equalTo: item.leading.trailingAnchor, constant: Self.gap),
+                icon.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap), icon.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+                label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: Self.gap),
             ])
-            if badges, let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") {
+            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⌘") {
                 row.addSubview(badge)
                 NSLayoutConstraint.activate([
                     label.trailingAnchor.constraint(lessThanOrEqualTo: badge.leadingAnchor, constant: -Self.gap),
@@ -421,6 +403,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             }
             box.addArrangedSubview(row)
         }
+        let footer = s.mode == .quickNav ? ["↑↓ move · ← back · − remove", "release ⌥ to open"] : [bookmarkHint].compactMap { $0 }
         if !footer.isEmpty, let last = box.arrangedSubviews.last { box.setCustomSpacing(Self.gap, after: last) }
         for line in footer {
             let label = hint(line, size: 11 * scale, width: width - 2 * Self.gap)
@@ -430,8 +413,70 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return box
     }
 
+    // Compact (previews and ⇧N) until ← enters the box, then wide enough to show each template's app names under its preview.
+    private func templatesBox(_ s: Switcher, fontSize: CGFloat, scale: CGFloat) -> NSView {
+        let expanded = s.mode == .templates
+        let rowWidth = ((expanded ? Self.quickNavBaseWidth : 100) * scale).rounded() - 2 * Self.gap
+        let box = NSStackView()
+        box.orientation = .vertical; box.alignment = .leading; box.spacing = 2
+        let title = NSTextField(labelWithString: "Templates")
+        title.font = .systemFont(ofSize: 11 * scale, weight: .semibold)
+        title.textColor = .secondaryLabelColor
+        title.alignment = .center
+        title.widthAnchor.constraint(equalToConstant: rowWidth).isActive = true
+        box.addArrangedSubview(title)
+        box.setCustomSpacing(Self.gap, after: title)
+        if let draft = s.draft {
+            let preview = templatePreview(draft, scale: scale)
+            preview.alphaValue = 0.5
+            let draftHint = hint(expanded ? "= save this layout" : "← then = save", size: 11 * scale)
+            let row = NSStackView(views: [preview, draftHint])
+            row.orientation = .vertical; row.alignment = .leading; row.spacing = 4 * scale
+            row.edgeInsets = NSEdgeInsets(top: 0, left: Self.gap, bottom: 0, right: Self.gap)
+            box.addArrangedSubview(row)
+            box.setCustomSpacing(Self.gap, after: row)
+        }
+        for (index, template) in s.templates.enumerated() {
+            let selected = expanded && index == s.templatesRow
+            let row = RowView(index: index, onKey: onKey, click: [.applyTemplate(index)])
+            row.wantsLayer = true
+            row.layer?.cornerRadius = 8 * scale
+            row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
+            let top = NSStackView(views: [templatePreview(template.slots, scale: scale)])
+            top.spacing = Self.gap
+            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") { top.addArrangedSubview(badge) }
+            let content = NSStackView(views: [top])
+            content.orientation = .vertical; content.alignment = .leading; content.spacing = 4 * scale
+            if expanded {
+                let label = NSTextField(wrappingLabelWithString: template.name)
+                label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
+                label.preferredMaxLayoutWidth = rowWidth - 2 * Self.gap
+                content.addArrangedSubview(label)
+            }
+            row.addSubview(content)
+            content.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                row.widthAnchor.constraint(equalToConstant: rowWidth),
+                content.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: Self.gap),
+                content.trailingAnchor.constraint(lessThanOrEqualTo: row.trailingAnchor, constant: -Self.gap),
+                content.topAnchor.constraint(equalTo: row.topAnchor, constant: Self.gap),
+                content.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -Self.gap),
+            ])
+            box.addArrangedSubview(row)
+        }
+        let footer =
+            expanded ? ["↑↓ move · → back", "= save · − remove", "release ⌥ to apply"] : s.templates.isEmpty && s.draft == nil ? ["no templates"] : []
+        if !footer.isEmpty, let last = box.arrangedSubviews.last { box.setCustomSpacing(Self.gap, after: last) }
+        for line in footer {
+            let label = hint(line, size: 11 * scale, width: rowWidth)
+            label.alignment = .center
+            box.addArrangedSubview(label)
+        }
+        return box
+    }
+
     private func badge(_ index: Int, size: CGFloat, selected: Bool, prefix: String = "") -> NSView? {
-        // Letters only apply to plain ⌥ shortcuts; ⌘ (search) and ⇧ (side boxes) stay 1–9.
+        // Letters only apply to plain ⌥ shortcuts; ⌘ (search, quick nav) and ⇧ (templates) stay 1–9.
         guard index < (prefix.isEmpty ? Switcher.shortcutLabels.count : 9) else { return nil }
         let label = NSTextField(labelWithString: prefix + Switcher.shortcutLabels[index])
         label.font = .monospacedDigitSystemFont(ofSize: size, weight: .medium)

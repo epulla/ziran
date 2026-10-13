@@ -56,7 +56,7 @@ Bookmarks for apps, folders, files and web pages, shown in a box beside the stri
 
 ### Templates
 
-Saved window layouts, shown in a box on the left of the strip and dropdown. A template places each app's window into a half, quarter, or full screen on the display the switcher is on, launching apps that aren't running.
+Saved window layouts, shown in a box on the left of the strip and dropdown. A template places each app's window into a half, quarter, or full screen on the display the switcher is on, launching apps that aren't running. The box shows a preview of each template, plus a dimmed preview of the current layout when it isn't saved yet.
 
 | Key | Result |
 | --- | --- |
