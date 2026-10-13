@@ -63,7 +63,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
 
     override var canBecomeKey: Bool { true }
 
-    func show(_ s: Switcher, bookmarkHint: String?) {
+    func show(_ s: Switcher, bookmark: URL?) {
         let fontSize = Settings.fontSize
         let scale = fontSize / 14
         let rowHeight = (40 * scale).rounded()
@@ -160,7 +160,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             quickNavPanel.orderOut(nil)
             templatesPanel.orderOut(nil)
         } else {
-            let quickNavBox = quickNavBox(s, bookmarkHint: bookmarkHint, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
+            let quickNavBox = quickNavBox(s, bookmark: bookmark, fontSize: fontSize, scale: scale, rowHeight: rowHeight)
             showSide(quickNavPanel, box: quickNavBox, x: frame.maxX + Self.quickNavSpacing)
             let templates = templatesBox(s, scale: scale)
             let size = templates.box.fittingSize
@@ -385,7 +385,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         return row
     }
 
-    private func quickNavBox(_ s: Switcher, bookmarkHint: String?, fontSize: CGFloat, scale: CGFloat, rowHeight: CGFloat) -> NSView {
+    private func quickNavBox(_ s: Switcher, bookmark: URL?, fontSize: CGFloat, scale: CGFloat, rowHeight: CGFloat) -> NSView {
         let width = (Self.quickNavBaseWidth * scale).rounded()
         let box = NSStackView()
         box.orientation = .vertical; box.alignment = .leading; box.spacing = 2
@@ -430,7 +430,10 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             }
             box.addArrangedSubview(row)
         }
-        let footer = s.mode == .quickNav ? ["↑↓ move · ← back · − remove", "release ⌥ to open"] : [bookmarkHint].compactMap { $0 }
+        let footer =
+            s.mode == .quickNav
+            ? ["↑↓ move · ← back · − remove", "release ⌥ to open"]
+            : [bookmark.map { "− \(s.quickNav.contains($0) ? "remove" : "bookmark") · \($0.quickNavName)" }].compactMap { $0 }
         if !footer.isEmpty, let last = box.arrangedSubviews.last { box.setCustomSpacing(Self.gap, after: last) }
         for line in footer {
             let label = hint(line, size: 11 * scale, width: width - 2 * Self.gap)
