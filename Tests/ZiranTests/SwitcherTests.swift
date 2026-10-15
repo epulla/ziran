@@ -379,6 +379,62 @@ func switcherSavesTemplateOutsideTemplates(mode: Switcher.Mode) {
     #expect(switcher.handle(.saveTemplate) == .saveTemplate)
 }
 
+private let threeBookmarks = bookmarks + [URL(string: "https://example.org")!]
+private let threeTemplates = templates + [LayoutTemplate(name: "Three", slots: [])]
+
+@Test(arguments: [
+    ([Switcher.Key.right, .down], 1, 0, [threeBookmarks[1], threeBookmarks[0], threeBookmarks[2]], 0),
+    ([.right], 0, 2, [threeBookmarks[1], threeBookmarks[2], threeBookmarks[0]], 2),
+    ([.right], 2, 0, [threeBookmarks[2], threeBookmarks[0], threeBookmarks[1]], 1),
+    ([.right, .down, .down], 0, 1, [threeBookmarks[1], threeBookmarks[0], threeBookmarks[2]], 2),
+    ([], 0, 2, [threeBookmarks[1], threeBookmarks[2], threeBookmarks[0]], 2),
+])
+func switcherMovesQuickNav(keys: [Switcher.Key], from: Int, to: Int, expected: [URL], row: Int) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, quickNav: threeBookmarks)
+    for key in keys { _ = switcher.handle(key) }
+    let mode = switcher.mode
+    #expect(switcher.handle(.moveQuickNav(from: from, to: to)) == .reorderQuickNav(expected))
+    #expect(switcher.quickNav == expected)
+    #expect(switcher.quickNavRow == row)
+    #expect(switcher.mode == mode)
+}
+
+@Test(arguments: [
+    ([Switcher.Key.left, .down], 1, 2, [threeTemplates[0], threeTemplates[2], threeTemplates[1]], 2),
+    ([.left], 2, 0, [threeTemplates[2], threeTemplates[0], threeTemplates[1]], 1),
+    ([.down], 0, 1, [threeTemplates[1], threeTemplates[0], threeTemplates[2]], 1),
+])
+func switcherMovesTemplates(keys: [Switcher.Key], from: Int, to: Int, expected: [LayoutTemplate], row: Int) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, templates: threeTemplates)
+    for key in keys { _ = switcher.handle(key) }
+    let mode = switcher.mode
+    #expect(switcher.handle(.moveTemplate(from: from, to: to)) == .reorderTemplates(expected))
+    #expect(switcher.templates == expected)
+    #expect(switcher.templatesRow == row)
+    #expect(switcher.mode == mode)
+}
+
+@Test(arguments: [
+    ([Switcher.Key.up], Switcher.Key.moveQuickNav(from: 0, to: 1)),
+    ([.up], .moveTemplate(from: 0, to: 1)),
+    ([.right], .moveQuickNav(from: 0, to: 0)),
+    ([.right], .moveQuickNav(from: 0, to: 3)),
+    ([.right], .moveQuickNav(from: -1, to: 0)),
+    ([.left], .moveTemplate(from: 2, to: 2)),
+    ([.left], .moveTemplate(from: 0, to: 3)),
+    ([.left], .moveTemplate(from: -1, to: 0)),
+])
+func switcherIgnoresInvalidMoves(keys: [Switcher.Key], move: Switcher.Key) {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, quickNav: threeBookmarks, templates: threeTemplates)
+    for key in keys { _ = switcher.handle(key) }
+    #expect(switcher.handle(move) == .none)
+    #expect(switcher.quickNav == threeBookmarks)
+    #expect(switcher.templates == threeTemplates)
+}
+
 @Test func switcherTemplatesChangedClampsRowAndStaysOpenWhenEmpty() {
     var switcher = Switcher()
     _ = switcher.open(fixture, templates: templates)

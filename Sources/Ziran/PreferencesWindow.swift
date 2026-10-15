@@ -104,6 +104,8 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
         quickNavTable.rowHeight = 24
         quickNavTable.dataSource = self
         quickNavTable.delegate = self
+        quickNavTable.registerForDraggedTypes([Self.quickNavRowType])
+        quickNavTable.draggingDestinationFeedbackStyle = .gap
         let scroll = NSScrollView()
         scroll.documentView = quickNavTable
         scroll.hasVerticalScroller = true
@@ -148,6 +150,34 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { quickNavItems.count }
+
+    private static let quickNavRowType = NSPasteboard.PasteboardType("com.ziran.quick-nav-row")
+
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> (any NSPasteboardWriting)? {
+        let item = NSPasteboardItem()
+        item.setString(String(row), forType: Self.quickNavRowType)
+        return item
+    }
+
+    func tableView(
+        _ tableView: NSTableView, validateDrop info: any NSDraggingInfo, proposedRow row: Int, proposedDropOperation dropOperation: NSTableView.DropOperation
+    ) -> NSDragOperation {
+        guard info.draggingSource as? NSTableView === quickNavTable else { return [] }
+        if dropOperation == .on { tableView.setDropRow(row, dropOperation: .above) }
+        return .move
+    }
+
+    func tableView(_ tableView: NSTableView, acceptDrop info: any NSDraggingInfo, row: Int, dropOperation: NSTableView.DropOperation) -> Bool {
+        guard let value = info.draggingPasteboard.string(forType: Self.quickNavRowType), let from = Int(value), quickNavItems.indices.contains(from)
+        else { return false }
+        // The drop row counts the dragged item still in place, so dropping below it lands one slot earlier once removed.
+        let to = row > from ? row - 1 : row
+        guard to != from else { return false }
+        quickNavItems.insert(quickNavItems.remove(at: from), at: to)
+        Settings.quickNav = quickNavItems
+        reloadQuickNav(selecting: to)
+        return true
+    }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let url = quickNavItems[row]
