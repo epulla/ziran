@@ -210,6 +210,12 @@ final class SwitcherTap {
             run(switcher.handle(.templatesChanged(Settings.layoutTemplates)))
         case .applyTemplate(let template):
             apply(template)
+        case .reorderQuickNav(let urls):
+            Settings.quickNav = urls
+            run(switcher.handle(.quickNavChanged(Settings.quickNav)))
+        case .reorderTemplates(let values):
+            Settings.layoutTemplates = values
+            run(switcher.handle(.templatesChanged(Settings.layoutTemplates)))
         case .none: break
         }
     }
