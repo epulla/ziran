@@ -9,6 +9,8 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private var icons: [pid_t: NSImage] = [:]
     private var bundleIcons: [String: NSImage] = [:]
     private var templatesScroll: NSScrollView?
+    // The row just dropped by a drag, so the next render can confirm it.
+    private var dropped: (quickNav: Bool, index: Int)?
     private var launchObserver: NSObjectProtocol?
     // One padding for every panel edge, row inset, and gap between sections, so all views line up.
     private static let gap: CGFloat = 8
@@ -64,6 +66,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     override var canBecomeKey: Bool { true }
 
     func show(_ s: Switcher, bookmark: URL?) {
+        defer { dropped = nil }
         let fontSize = Settings.fontSize
         let scale = fontSize / 14
         let rowHeight = (40 * scale).rounded()
@@ -419,10 +422,14 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         }
         for (index, url) in s.quickNav.enumerated() {
             let selected = s.mode == .quickNav && index == s.quickNavRow
-            let row = RowView(index: index, onKey: onKey, click: [.openQuickNav(index)])
+            let row = RowView(index: index, onKey: onKey, click: [.openQuickNav(index)]) { [weak self] from, to in
+                self?.dropped = (true, to)
+                return .moveQuickNav(from: from, to: to)
+            }
             row.wantsLayer = true
             row.layer?.cornerRadius = 8 * scale
             row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
+            if dropped?.quickNav == true && dropped?.index == index { row.glow() }
             let icon = iconView(url.quickNavIcon, size: 28 * scale)
             let label = NSTextField(labelWithString: url.quickNavName)
             label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
@@ -506,10 +513,14 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         }
         for (index, template) in s.templates.enumerated() {
             let selected = expanded && index == s.templatesRow
-            let row = RowView(index: index, onKey: onKey, click: [.applyTemplate(index)])
+            let row = RowView(index: index, onKey: onKey, click: [.applyTemplate(index)]) { [weak self] from, to in
+                self?.dropped = (false, to)
+                return .moveTemplate(from: from, to: to)
+            }
             row.wantsLayer = true
             row.layer?.cornerRadius = 8 * scale
             row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
+            if dropped?.quickNav == false && dropped?.index == index { row.glow() }
             if selected { selectedRow = row }
             let preview = templatePreview(template.slots)
             if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") {
@@ -651,11 +662,18 @@ private final class RowView: NSView {
     let index: Int
     let onKey: (Switcher.Key) -> Void
     let click: [Switcher.Key]
+    // Draggable rows click on mouse-up so a drag doesn't also open the item.
+    let move: ((Int, Int) -> Switcher.Key)?
+    private var dragStart: NSPoint?
+    private var dragging = false
+    private var floating: NSPanel?
+    private var dropLine: NSView?
 
-    init(index: Int, onKey: @escaping (Switcher.Key) -> Void, click: [Switcher.Key]? = nil) {
+    init(index: Int, onKey: @escaping (Switcher.Key) -> Void, click: [Switcher.Key]? = nil, move: ((Int, Int) -> Switcher.Key)? = nil) {
         self.index = index
         self.onKey = onKey
         self.click = click ?? [.select(index), .enter]
+        self.move = move
         super.init(frame: .zero)
     }
 
@@ -663,7 +681,125 @@ private final class RowView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseDown(with event: NSEvent) { click.forEach(onKey) }
+    override func mouseDown(with event: NSEvent) {
+        guard move != nil else { return click.forEach(onKey) }
+        dragStart = event.locationInWindow
+        dragging = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let dragStart, let window else { return }
+        let location = event.locationInWindow
+        if !dragging {
+            guard hypot(location.x - dragStart.x, location.y - dragStart.y) > 4 else { return }
+            dragging = true
+            startDrag(in: window)
+        }
+        floating?.setFrameOrigin(NSPoint(x: frameOnScreen.minX + location.x - dragStart.x, y: frameOnScreen.minY + location.y - dragStart.y))
+        updateDropLine(target: dropTarget(event))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let move, dragStart != nil else { return }
+        dragStart = nil
+        guard dragging else { return click.forEach(onKey) }
+        dragging = false
+        let target = dropTarget(event)
+        guard let target, target.index != index else { return cancelDrag() }
+        endDrag()
+        onKey(move(index, target.index))
+    }
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil { endDrag() }
+    }
+
+    // Brief accent wash confirming where a dragged row landed.
+    func glow() {
+        let animation = CABasicAnimation(keyPath: "backgroundColor")
+        animation.fromValue = NSColor.controlAccentColor.withAlphaComponent(0.6).cgColor
+        animation.toValue = layer?.backgroundColor
+        animation.duration = 0.4
+        layer?.add(animation, forKey: "glow")
+    }
+
+    private var frameOnScreen: NSRect { window?.convertToScreen(convert(bounds, to: nil)) ?? .zero }
+
+    private var siblings: [RowView] { superview?.subviews.compactMap { $0 as? RowView } ?? [] }
+
+    // The row whose center is nearest the pointer, so gaps and the ends of the box still land somewhere; nil outside the box.
+    private func dropTarget(_ event: NSEvent) -> RowView? {
+        guard let superview, superview.convert(superview.bounds, to: nil).contains(event.locationInWindow) else { return nil }
+        let y = event.locationInWindow.y
+        return siblings.min { abs($0.convert($0.bounds, to: nil).midY - y) < abs($1.convert($1.bounds, to: nil).midY - y) }
+    }
+
+    private func startDrag(in window: NSWindow) {
+        guard let image = bitmapImageRepForCachingDisplay(in: bounds) else { return }
+        cacheDisplay(in: bounds, to: image)
+        let snapshot = NSImage(size: bounds.size)
+        snapshot.addRepresentation(image)
+        let copy = NSImageView(image: snapshot)
+        copy.wantsLayer = true
+        copy.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.9).cgColor
+        copy.layer?.cornerRadius = layer?.cornerRadius ?? 8
+        copy.frameCenterRotation = 2
+        let panel = NSPanel(contentRect: frameOnScreen.insetBy(dx: -6, dy: -6), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.ignoresMouseEvents = true
+        panel.contentView = NSView()
+        copy.frame = panel.contentView!.bounds.insetBy(dx: 6, dy: 6)
+        panel.contentView?.addSubview(copy)
+        // A child window hides with the box if the switcher closes mid-drag.
+        window.addChildWindow(panel, ordered: .above)
+        floating = panel
+        alphaValue = 0.3
+        NSCursor.closedHand.set()
+    }
+
+    private func updateDropLine(target: RowView?) {
+        guard let superview, let target, target.index != index else { dropLine?.isHidden = true; return }
+        let line = dropLine ?? NSView()
+        if dropLine == nil {
+            line.wantsLayer = true
+            line.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+            line.layer?.cornerRadius = 1
+            superview.addSubview(line)
+            dropLine = line
+        }
+        // Rows move by remove-then-insert, so a downward drop lands below the target and an upward one above it.
+        let frame = target.frame
+        let bottom = superview.isFlipped ? frame.maxY : frame.minY
+        let top = superview.isFlipped ? frame.minY : frame.maxY
+        let edge = target.index > index ? bottom : top
+        line.frame = NSRect(x: frame.minX + 4, y: edge - 1, width: frame.width - 8, height: 2)
+        line.isHidden = false
+    }
+
+    private func cancelDrag() {
+        guard let floating else { return endDrag() }
+        let home = frameOnScreen.insetBy(dx: -6, dy: -6)
+        dropLine?.isHidden = true
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            floating.animator().setFrame(home, display: true)
+        } completionHandler: { [weak self] in
+            MainActor.assumeIsolated { self?.endDrag() }
+        }
+    }
+
+    private func endDrag() {
+        guard let floating else { return }
+        floating.parent?.removeChildWindow(floating)
+        floating.orderOut(nil)
+        self.floating = nil
+        dropLine?.removeFromSuperview()
+        dropLine = nil
+        alphaValue = 1
+        NSCursor.arrow.set()
+    }
 
     // Shown only while the pointer is over the row.
     var hoverView: NSView? {
