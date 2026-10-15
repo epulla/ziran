@@ -129,6 +129,16 @@ final class SwitcherTap {
                 return true
             }
             guard switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav || switcher.mode == .templates else { return false }
+            // ⌘↑↓ reorders only inside the boxes; swallow it in the strip and dropdown so it doesn't act as a plain arrow.
+            if (keycode == 126 || keycode == 125) && flags.contains(.maskCommand) {
+                let offset = keycode == 126 ? -1 : 1
+                if switcher.mode == .quickNav {
+                    run(switcher.handle(.moveQuickNav(from: switcher.quickNavRow, to: switcher.quickNavRow + offset)))
+                } else if switcher.mode == .templates {
+                    run(switcher.handle(.moveTemplate(from: switcher.templatesRow, to: switcher.templatesRow + offset)))
+                }
+                return true
+            }
             let key: Switcher.Key?
             switch keycode {
             case 126: key = .up

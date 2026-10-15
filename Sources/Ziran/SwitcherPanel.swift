@@ -461,7 +461,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         }
         let footer =
             s.mode == .quickNav
-            ? ["↑↓ move · ← back · − remove", "release ⌥ to open"]
+            ? ["↑↓ move · ← back · − remove", "⌘↑↓ reorder · release ⌥ to open"]
             : []
         if !footer.isEmpty, let last = box.arrangedSubviews.last { box.setCustomSpacing(Self.gap, after: last) }
         for line in footer {
@@ -549,7 +549,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             box.addArrangedSubview(row)
         }
         let footer =
-            expanded ? ["↑↓ move · → back", "= save · − remove"] : s.templates.isEmpty && s.draft == nil ? ["no templates"] : []
+            expanded ? ["↑↓ move · → back", "= save · − remove", "⌘↑↓ reorder"] : s.templates.isEmpty && s.draft == nil ? ["no templates"] : []
         if !footer.isEmpty, let last = box.arrangedSubviews.last { box.setCustomSpacing(Self.gap, after: last) }
         for line in footer {
             let label = hint(line, size: 11 * scale, width: rowWidth)
