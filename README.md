@@ -49,7 +49,7 @@ Bookmarks for apps, folders, files and web pages, shown in a box beside the stri
 | Key | Result |
 | --- | --- |
 | − in strip/dropdown | Bookmark the selected window, or remove it if saved; the box names what gets saved |
-| ⌘1–9 while switcher is open (except list/search) | Open Nth bookmark |
+| ⇧1–9 while switcher is open (except list/search) | Open Nth bookmark |
 | → in strip/dropdown | Move into quick nav; ↑↓ move, ↩ or release ⌥ opens, − removes, ← goes back |
 | ⌘↑ / ⌘↓ in quick nav | Move the selected bookmark up / down |
 | Drag a row | Reorder bookmarks |
@@ -67,7 +67,7 @@ Saved window layouts, shown in a box on the left of the strip and dropdown. A te
 | Drag a row | Reorder templates |
 | = in templates | Save the visible windows on this display as a template, named after their apps |
 | − in templates | Remove the selected template |
-| ⇧1–9 while switcher is open (except list/search) | Apply Nth template |
+| ⌘1–9 while switcher is open (except list/search) | Apply Nth template |
 
 ### Window shortcuts
 

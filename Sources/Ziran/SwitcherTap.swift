@@ -97,13 +97,13 @@ final class SwitcherTap {
             if switcher.mode != .closed && switcher.mode != .list && flags.contains(.maskShift) && !modifier,
                 let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
-                run(switcher.handle(.applyTemplate(index)))
+                run(switcher.handle(.openQuickNav(index)))
                 return true
             }
             if switcher.mode != .closed && flags.contains(.maskCommand),
                 let index = Self.digits.firstIndex(of: keycode) ?? Self.keypadDigits.firstIndex(of: keycode)
             {
-                run(switcher.handle(switcher.mode == .list ? .jump(index) : .openQuickNav(index)))
+                run(switcher.handle(switcher.mode == .list ? .jump(index) : .applyTemplate(index)))
                 return true
             }
             if switcher.mode != .closed && switcher.mode != .list && (flags.contains(.maskControl) || alternate),
