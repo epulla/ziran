@@ -97,7 +97,7 @@ final class PreferencesWindow: NSWindowController, NSTableViewDataSource, NSTabl
     private func quickNavController() -> NSViewController {
         let controller = NSViewController()
         let title = sectionTitle("Quick nav")
-        let caption = secondaryLabel("Open items with ⌘1–9 in the switcher. ⌥− there adds the selected window.")
+        let caption = secondaryLabel("Open items with ⇧1–9 in the switcher. ⌥− there adds the selected window.")
         quickNavTable.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("item")))
         quickNavTable.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         quickNavTable.headerView = nil

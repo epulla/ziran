@@ -454,7 +454,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
                 label.trailingAnchor.constraint(lessThanOrEqualTo: remove.leadingAnchor, constant: -Self.gap),
                 remove.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             ])
-            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⌘") {
+            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") {
                 row.addSubview(badge)
                 NSLayoutConstraint.activate([
                     remove.trailingAnchor.constraint(equalTo: badge.leadingAnchor, constant: -Self.gap),
@@ -523,7 +523,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             if dropped?.quickNav == false && dropped?.index == index { row.glow() }
             if selected { selectedRow = row }
             let preview = templatePreview(template.slots)
-            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⇧") {
+            if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⌘") {
                 preview.addSubview(badge)
                 NSLayoutConstraint.activate([
                     badge.trailingAnchor.constraint(equalTo: preview.trailingAnchor, constant: -(4 * scale).rounded()),
@@ -571,7 +571,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     }
 
     private func badge(_ index: Int, size: CGFloat, selected: Bool, prefix: String = "") -> NSView? {
-        // Letters only apply to plain ⌥ shortcuts; ⌘ (search, quick nav) and ⇧ (templates) stay 1–9.
+        // Letters only apply to plain ⌥ shortcuts; ⌘ (search, templates) and ⇧ (quick nav) stay 1–9.
         guard index < (prefix.isEmpty ? Switcher.shortcutLabels.count : 9) else { return nil }
         let label = NSTextField(labelWithString: prefix + Switcher.shortcutLabels[index])
         label.font = .monospacedDigitSystemFont(ofSize: size, weight: .medium)
