@@ -31,6 +31,7 @@ remove and re-add Ziran in Accessibility settings.
 | Release ⌥ or press ↩ | Switch to selected item |
 | Esc | Close switcher |
 | = (hold ⌥) in strip/dropdown; ⌘= in list/search | Pin or unpin selected window |
+| ⌘↑↓ on a pinned window in dropdown/list | Reorder pins |
 | W (hold ⌥) in dropdown; ⌘W in list/search | Close selected window |
 | W (hold ⌥) in strip | Close all windows of selected app |
 | Q (hold ⌥) in strip | Quit selected app |
@@ -40,7 +41,7 @@ remove and re-add Ziran in Accessibility settings.
 | Scroll | Move selection |
 | Pin icon | Pin item |
 
-Pins last until Ziran quits and sort first in the dropdown and list.
+Pins last until Ziran quits and sort first in the dropdown and list. Drag a pinned window to reorder pins.
 
 ### Quick nav
 

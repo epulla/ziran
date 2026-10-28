@@ -86,6 +86,47 @@ func switcherSequences(keys: [Switcher.Key], expected: Switcher.Effect, mode: Sw
     #expect(switcher.row == 2)
 }
 
+@Test func switcherMovesPinsInDropdownAndKeepsSelection() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    _ = switcher.handle(.pin(1)); _ = switcher.handle(.pin(2))
+    _ = switcher.handle(.select(0))
+    #expect(switcher.handle(.movePin(from: 0, to: 1)) == .update)
+    #expect(switcher.pins == [2, 1])
+    #expect(switcher.selection == fixture[0])
+    #expect(switcher.row == 1)
+    #expect(switcher.handle(.movePin(from: 1, to: 0)) == .update)
+    #expect(switcher.pins == [1, 2])
+    #expect(switcher.selection == fixture[0])
+}
+
+@Test func switcherMovesPinsInList() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture)
+    _ = switcher.handle(.pin(1)); _ = switcher.handle(.pin(2)); _ = switcher.handle(.up)
+    #expect(switcher.handle(.movePin(from: 0, to: 1)) == .update)
+    #expect(switcher.pins == [2, 1])
+    #expect(switcher.row == 1)
+}
+
+@Test func switcherRejectsPinMovesOutsidePinnedBlockAndStrip() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    _ = switcher.handle(.pin(1))
+    #expect(switcher.handle(.movePin(from: 0, to: 1)) == .none)
+    #expect(switcher.handle(.movePin(from: 1, to: 0)) == .none)
+    _ = switcher.handle(.escape); _ = switcher.open(fixture)
+    #expect(switcher.handle(.movePin(from: 0, to: 1)) == .none)
+}
+
+@Test func switcherReordersDropdownPinsWithoutMovingOtherAppsPins() {
+    var switcher = Switcher()
+    _ = switcher.open(fixture, app: 1)
+    _ = switcher.handle(.pin(1)); _ = switcher.handle(.pin(3)); _ = switcher.handle(.pin(2))
+    #expect(switcher.handle(.movePin(from: 0, to: 1)) == .update)
+    #expect(switcher.pins == [3, 2, 1])
+}
+
 @Test(arguments: [
     ([Switcher.Key.jump(0)], Switcher.Effect.focus(fixture[0]), Switcher.Mode.closed),
     ([.jump(2)], .focus(fixture[4]), .closed),

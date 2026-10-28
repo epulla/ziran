@@ -10,7 +10,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private var bundleIcons: [String: NSImage] = [:]
     private var templatesScroll: NSScrollView?
     // The row just dropped by a drag, so the next render can confirm it.
-    private var dropped: (quickNav: Bool, index: Int)?
+    private var dropped: (mode: Switcher.Mode, index: Int)?
     private var launchObserver: NSObjectProtocol?
     // One padding for every panel edge, row inset, and gap between sections, so all views line up.
     private static let gap: CGFloat = 8
@@ -86,7 +86,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
             field.font = .systemFont(ofSize: fontSize); field.stringValue = s.query
             root.addArrangedSubview(field)
             root.setCustomSpacing(Self.gap, after: field)
-            for line in ["↑↓ move · ↩ switch · esc close", "⌘= pin · ⌘W close window"] {
+            for line in ["↑↓ move · ↩ switch · esc close", "⌘= pin · ⌘↑↓ reorder pins · ⌘W close window"] {
                 let searchHint = hint(line, size: 11 * scale, width: listWidth - 2 * Self.gap)
                 searchHint.alignment = .center
                 root.addArrangedSubview(searchHint)
@@ -351,10 +351,17 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     )
         -> NSView
     {
-        let row = RowView(index: index, onKey: onKey)
+        let move: ((Int, Int) -> Switcher.Key)? =
+            pinned
+            ? { [weak self] from, to in
+                self?.dropped = (mode, to)
+                return .movePin(from: from, to: to)
+            } : nil
+        let row = RowView(index: index, onKey: onKey, move: move)
         row.wantsLayer = true
         row.layer?.cornerRadius = 8 * scale
         row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
+        if dropped?.mode == mode && dropped?.index == index { row.glow() }
         let icon = NSImageView(image: appIcon(window.pid))
         icon.imageScaling = .scaleProportionallyUpOrDown
         let appName = window.appName
@@ -423,13 +430,13 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         for (index, url) in s.quickNav.enumerated() {
             let selected = s.mode == .quickNav && index == s.quickNavRow
             let row = RowView(index: index, onKey: onKey, click: [.openQuickNav(index)]) { [weak self] from, to in
-                self?.dropped = (true, to)
+                self?.dropped = (.quickNav, to)
                 return .moveQuickNav(from: from, to: to)
             }
             row.wantsLayer = true
             row.layer?.cornerRadius = 8 * scale
             row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
-            if dropped?.quickNav == true && dropped?.index == index { row.glow() }
+            if dropped?.mode == .quickNav && dropped?.index == index { row.glow() }
             let icon = iconView(url.quickNavIcon, size: 28 * scale)
             let label = NSTextField(labelWithString: url.quickNavName)
             label.font = .systemFont(ofSize: fontSize, weight: selected ? .semibold : .regular); label.textColor = selected ? .white : .labelColor
@@ -514,13 +521,13 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
         for (index, template) in s.templates.enumerated() {
             let selected = expanded && index == s.templatesRow
             let row = RowView(index: index, onKey: onKey, click: [.applyTemplate(index)]) { [weak self] from, to in
-                self?.dropped = (false, to)
+                self?.dropped = (.templates, to)
                 return .moveTemplate(from: from, to: to)
             }
             row.wantsLayer = true
             row.layer?.cornerRadius = 8 * scale
             row.layer?.backgroundColor = selected ? NSColor.selectedContentBackgroundColor.cgColor : NSColor.clear.cgColor
-            if dropped?.quickNav == false && dropped?.index == index { row.glow() }
+            if dropped?.mode == .templates && dropped?.index == index { row.glow() }
             if selected { selectedRow = row }
             let preview = templatePreview(template.slots)
             if let badge = badge(index, size: 11 * scale, selected: selected, prefix: "⌘") {
@@ -584,7 +591,7 @@ final class SwitcherPanel: NSPanel, NSSearchFieldDelegate {
     private func hintLines(_ mode: Switcher.Mode) -> [String] {
         switch mode {
         case .strip: return ["⇥ next app · ↑ search · ↓ windows · ← templates · → quick nav"]
-        case .dropdown: return ["↑↓ move · ⇥ next app · ← templates · → quick nav · release ⌥ to switch", "= pin · W close window"]
+        case .dropdown: return ["↑↓ move · ⇥ next app · ← templates · → quick nav · release ⌥ to switch", "= pin · ⌘↑↓ reorder pins · W close window"]
         case .quickNav, .templates, .list, .closed: return []
         }
     }
@@ -725,7 +732,8 @@ private final class RowView: NSView {
 
     private var frameOnScreen: NSRect { window?.convertToScreen(convert(bounds, to: nil)) ?? .zero }
 
-    private var siblings: [RowView] { superview?.subviews.compactMap { $0 as? RowView } ?? [] }
+    // Only draggable rows are drop targets, so pins can't land among unpinned windows.
+    private var siblings: [RowView] { superview?.subviews.compactMap { $0 as? RowView }.filter { $0.move != nil } ?? [] }
 
     // The row whose center is nearest the pointer, so gaps and the ends of the box still land somewhere; nil outside the box.
     private func dropTarget(_ event: NSEvent) -> RowView? {

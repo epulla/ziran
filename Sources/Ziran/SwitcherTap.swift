@@ -131,8 +131,13 @@ final class SwitcherTap {
                 if let id = switcher.selection?.id { run(switcher.handle(.pin(id))) }
                 return true
             }
+            if (switcher.mode == .dropdown || switcher.mode == .list) && (keycode == 126 || keycode == 125) && flags.contains(.maskCommand) {
+                let offset = keycode == 126 ? -1 : 1
+                run(switcher.handle(.movePin(from: switcher.row, to: switcher.row + offset)))
+                return true
+            }
             guard switcher.mode == .strip || switcher.mode == .dropdown || switcher.mode == .quickNav || switcher.mode == .templates else { return false }
-            // ⌘↑↓ reorders only inside the boxes; swallow it in the strip and dropdown so it doesn't act as a plain arrow.
+            // ⌘↑↓ reorders only inside the boxes; swallow it in the strip so it doesn't act as a plain arrow.
             if (keycode == 126 || keycode == 125) && flags.contains(.maskCommand) {
                 let offset = keycode == 126 ? -1 : 1
                 if switcher.mode == .quickNav {

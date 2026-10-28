@@ -8,7 +8,7 @@ struct Switcher {
         case tab, shiftTab, nextWindow, previousWindow, up, down, left, right, enter, escape, optionUp, closeWindow, quitApp, bookmark,
             windowClosed(CGWindowID), appQuit(pid_t), query(String), select(Int), pin(CGWindowID), jump(Int), openQuickNav(Int), quickNavChanged([URL]),
             applyTemplate(Int), selectTemplate(Int), templatesChanged([LayoutTemplate]), saveTemplate, removeTemplate(Int), removeQuickNav(Int),
-            moveQuickNav(from: Int, to: Int), moveTemplate(from: Int, to: Int)
+            moveQuickNav(from: Int, to: Int), moveTemplate(from: Int, to: Int), movePin(from: Int, to: Int)
     }
     enum Effect: Equatable {
         case none, update, focus(WindowInfo), close, closeWindow(WindowInfo), closeWindows([WindowInfo]), quitApp(pid_t), open(URL), toggleBookmark(WindowInfo),
@@ -121,7 +121,8 @@ struct Switcher {
                 return .update
             case .escape: return close()
             case .tab, .shiftTab, .nextWindow, .previousWindow, .left, .closeWindow, .quitApp, .windowClosed, .appQuit, .query, .pin, .jump,
-                .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .select, .removeTemplate, .removeQuickNav, .moveQuickNav, .moveTemplate:
+                .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .select, .removeTemplate, .removeQuickNav, .moveQuickNav, .moveTemplate,
+                .movePin:
                 return .none
             }
         }
@@ -139,7 +140,7 @@ struct Switcher {
             case .escape: return close()
             case .tab, .shiftTab, .nextWindow, .previousWindow, .right, .closeWindow, .quitApp, .windowClosed, .appQuit, .query, .select, .pin, .jump,
                 .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .saveTemplate, .selectTemplate, .removeTemplate, .removeQuickNav,
-                .moveQuickNav, .moveTemplate:
+                .moveQuickNav, .moveTemplate, .movePin:
                 return .none
             }
         }
@@ -148,6 +149,17 @@ struct Switcher {
             if let index = pins.firstIndex(of: id) { pins.remove(at: index) } else { pins.append(id) }
             if let selected, mode == .list, let index = list.firstIndex(of: selected) { row = index }
             if let selected, mode == .dropdown, let index = dropdown.firstIndex(of: selected) { row = index }
+            return .update
+        }
+        if case .movePin(let from, let to) = key {
+            let view = mode == .dropdown ? dropdown : mode == .list ? list : []
+            let pinnedCount = view.prefix { pins.contains($0.id) }.count
+            guard from != to, from >= 0, to >= 0, from < pinnedCount, to < pinnedCount else { return .none }
+            let movedID = view[from].id, targetID = view[to].id
+            pins.removeAll { $0 == movedID }
+            guard let target = pins.firstIndex(of: targetID) else { return .none }
+            pins.insert(movedID, at: target + (from < to ? 1 : 0))
+            row = Self.moved(row, from: from, to: to)
             return .update
         }
         if case .jump(let index) = key {
@@ -220,7 +232,7 @@ struct Switcher {
                 return finish(.focus(selection))
             case .tab, .shiftTab, .nextWindow, .previousWindow, .left, .right, .optionUp, .escape, .closeWindow, .quitApp, .bookmark, .windowClosed, .appQuit,
                 .select, .pin, .jump, .openQuickNav, .quickNavChanged, .applyTemplate, .templatesChanged, .saveTemplate, .selectTemplate, .removeTemplate,
-                .removeQuickNav, .moveQuickNav, .moveTemplate:
+                .removeQuickNav, .moveQuickNav, .moveTemplate, .movePin:
                 return .none
             }
         }
@@ -253,7 +265,7 @@ struct Switcher {
             return .update
         case .bookmark: return selection.map { .toggleBookmark($0) } ?? .none
         case .query, .escape, .closeWindow, .quitApp, .windowClosed, .appQuit, .select, .pin, .jump, .openQuickNav, .quickNavChanged, .applyTemplate,
-            .templatesChanged, .saveTemplate, .selectTemplate, .removeTemplate, .removeQuickNav, .moveQuickNav, .moveTemplate:
+            .templatesChanged, .saveTemplate, .selectTemplate, .removeTemplate, .removeQuickNav, .moveQuickNav, .moveTemplate, .movePin:
             return .none
         case .enter, .optionUp:
             if mode == .strip && apps.count < 2 { return close() }
