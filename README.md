@@ -6,7 +6,13 @@ Every action has a keyboard shortcut, and each view shows the keys that work in 
 
 ## Install
 
-Download `Ziran-X.Y.Z.zip` from [Releases](https://github.com/epulla/ziran/releases), unzip, move `Ziran.app` to Applications, and open it with right-click → Open (the app is ad-hoc signed).
+```sh
+brew install --cask epulla/tap/ziran
+```
+
+The app is ad-hoc signed and not notarized: on first launch, allow it in System Settings → Privacy & Security → **Open Anyway**. After each upgrade, you may need to remove and re-add Ziran in Accessibility settings.
+
+Or download `Ziran-X.Y.Z.zip` from [Releases](https://github.com/epulla/ziran/releases), unzip, move `Ziran.app` to Applications, and open it with right-click → Open (the app is ad-hoc signed).
 
 Or build app bundle:
 
