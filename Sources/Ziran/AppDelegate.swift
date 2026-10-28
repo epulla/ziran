@@ -11,7 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Ziran")
+        statusItem.button?.image = Self.menuBarIcon() ?? NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Ziran")
+        statusItem.button?.setAccessibilityLabel("Ziran")
         statusItem.button?.toolTip = "Ziran"
         let menu = NSMenu()
         let windowItem = menu.addItem(withTitle: "Window", action: nil, keyEquivalent: "")
@@ -55,6 +56,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 )
             ).runModal()
         }
+    }
+
+    // The fox ships inside the .app built by scripts/bundle.sh; `make run` has no bundle resources and keeps the SF Symbol.
+    static func menuBarIcon(in bundle: Bundle = .main) -> NSImage? {
+        let size = NSSize(width: 18, height: 18)
+        let image = NSImage(size: size)
+        for name in ["ZiranMenuBarTemplate", "ZiranMenuBarTemplate@2x"] {
+            guard let url = bundle.url(forResource: name, withExtension: "png"), let representation = NSImageRep(contentsOf: url) else { continue }
+            representation.size = size
+            image.addRepresentation(representation)
+        }
+        guard !image.representations.isEmpty else { return nil }
+        image.isTemplate = true
+        image.accessibilityDescription = "Ziran"
+        return image
     }
 
     private func windowMenu() -> NSMenu {

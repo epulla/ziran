@@ -9,6 +9,8 @@ DIST_DIR="${DIST_DIR:-$ROOT_DIR/dist}"
 APP_PATH="${APP_PATH:-$DIST_DIR/$APP_NAME.app}"
 INFO_PLIST="$ROOT_DIR/Resources/Info.plist"
 ICON_PNG="$ROOT_DIR/Resources/AppIcon.png"
+ICON_ICNS="$ROOT_DIR/Resources/AppIcon.icns"
+MENU_BAR_ICONS=("$ROOT_DIR/Resources/ZiranMenuBarTemplate.png" "$ROOT_DIR/Resources/ZiranMenuBarTemplate@2x.png")
 ARCH_FLAGS=()
 for arch in ${ARCHS:-}; do
     ARCH_FLAGS+=(--arch "$arch")
@@ -24,10 +26,17 @@ if [[ ! -f "$INFO_PLIST" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$ICON_PNG" ]]; then
-    printf 'error: missing app icon: %s\n' "$ICON_PNG" >&2
+if [[ ! -f "$ICON_ICNS" && ! -f "$ICON_PNG" ]]; then
+    printf 'error: missing app icon: %s or %s\n' "$ICON_ICNS" "$ICON_PNG" >&2
     exit 1
 fi
+
+for icon in "${MENU_BAR_ICONS[@]}"; do
+    if [[ ! -f "$icon" ]]; then
+        printf 'error: missing menu bar icon: %s\n' "$icon" >&2
+        exit 1
+    fi
+done
 
 BIN_DIR="$(swift build --package-path "$ROOT_DIR" -c "$CONFIGURATION" --show-bin-path "${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}")"
 swift build --package-path "$ROOT_DIR" -c "$CONFIGURATION" --product "$APP_NAME" "${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}"
@@ -49,14 +58,20 @@ if [[ -n ${BUILD_NUMBER:-} ]]; then
     /usr/bin/plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APP_PATH/Contents/Info.plist"
 fi
 /usr/bin/plutil -insert CFBundleExecutable -string "$APP_NAME" "$APP_PATH/Contents/Info.plist"
-ICONSET_DIR="$(/usr/bin/mktemp -d)/AppIcon.iconset"
-trap '/bin/rm -rf "$(dirname "$ICONSET_DIR")"' EXIT
-/bin/mkdir -p "$ICONSET_DIR"
-for size in 16 32 128 256 512; do
-    /usr/bin/sips -z "$size" "$size" "$ICON_PNG" --out "$ICONSET_DIR/icon_${size}x${size}.png" >/dev/null
-    /usr/bin/sips -z "$((size * 2))" "$((size * 2))" "$ICON_PNG" --out "$ICONSET_DIR/icon_${size}x${size}@2x.png" >/dev/null
-done
-/usr/bin/iconutil -c icns "$ICONSET_DIR" -o "$APP_PATH/Contents/Resources/AppIcon.icns"
+# The supplied ICNS has hand-tuned small sizes, so it wins over downscaling the PNG.
+if [[ -f "$ICON_ICNS" ]]; then
+    /bin/cp "$ICON_ICNS" "$APP_PATH/Contents/Resources/AppIcon.icns"
+else
+    ICONSET_DIR="$(/usr/bin/mktemp -d)/AppIcon.iconset"
+    trap '/bin/rm -rf "$(dirname "$ICONSET_DIR")"' EXIT
+    /bin/mkdir -p "$ICONSET_DIR"
+    for size in 16 32 128 256 512; do
+        /usr/bin/sips -z "$size" "$size" "$ICON_PNG" --out "$ICONSET_DIR/icon_${size}x${size}.png" >/dev/null
+        /usr/bin/sips -z "$((size * 2))" "$((size * 2))" "$ICON_PNG" --out "$ICONSET_DIR/icon_${size}x${size}@2x.png" >/dev/null
+    done
+    /usr/bin/iconutil -c icns "$ICONSET_DIR" -o "$APP_PATH/Contents/Resources/AppIcon.icns"
+fi
+/bin/cp "${MENU_BAR_ICONS[@]}" "$APP_PATH/Contents/Resources/"
 /usr/bin/codesign --force --deep --sign "${SIGN_IDENTITY:--}" "$APP_PATH"
 
 printf 'Created %s\n' "$APP_PATH"
