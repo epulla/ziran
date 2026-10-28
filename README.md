@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/brand/ziran-readme-hero.png" alt="Ziran — Your windows. In flow. A warm orange fox beside the Ziran app icon." width="900">
+</p>
+
 # Ziran
 
 Keyboard-first window switcher for macOS (menubar app, macOS 14+).
@@ -112,6 +116,10 @@ make run
 ```
 
 Swift 6, SwiftPM, no dependencies. See `AGENTS.md` for conventions.
+
+`make run` launches the bare executable without bundle resources, so the menu bar shows a fallback symbol instead of the fox. Use `make bundle && open dist/Ziran.app` to see the branded app and menu bar icons.
+
+Brand assets (logos, mascot, palette, social preview, editable icon sources) live in [`docs/brand`](docs/brand/README.md).
 
 ## Acknowledgements
 

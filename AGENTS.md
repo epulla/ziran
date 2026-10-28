@@ -33,6 +33,8 @@ Set `APP_VERSION`, `BUILD_NUMBER`, `ARCHS`, or `SIGN_IDENTITY` when producing a 
 - `SwitcherTap.swift` - Maps CGEvent keyboard input to `Switcher.Key`, opens the switcher, and runs produced effects.
 - `WindowTracker.swift` - Observes app activation and focused-window changes, maintains AX elements and focus timestamps, and builds MRU snapshots.
 
+`Resources/` holds files copied into the app by `scripts/bundle.sh` (Info.plist, `AppIcon.icns`, menu bar template PNGs); `docs/brand/` holds source and marketing art that is never bundled.
+
 All state changes go through `Switcher.handle` or `Switcher.open`; UI and event tap code never mutate switcher state directly.
 
 ## Conventions
