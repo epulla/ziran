@@ -8,6 +8,16 @@ Keyboard-first window switcher for macOS (menubar app, macOS 14+).
 
 Every action has a keyboard shortcut, and each view shows the keys that work in it. Mouse support is optional.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/strip.png" alt="⌥Tab app strip with the templates box on the left and quick nav on the right" width="800">
+</p>
+
+| ⌥` window dropdown with a pinned window | ↑ search across every window |
+| --- | --- |
+| <img src="docs/screenshots/dropdown.png" alt="Window dropdown listing Microsoft Edge windows, one pinned above the separator"> | <img src="docs/screenshots/search.png" alt="Search list filtered by epulla"> |
+
 ## Install
 
 ```sh
