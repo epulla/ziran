@@ -11,12 +11,12 @@ enum AX {
         return _AXUIElementGetWindow(el, &id) == .success ? id : nil
     }
 
-    static func windows(pid: pid_t) -> [AXUIElement] {
+    static func windows(pid: pid_t) -> [AXUIElement]? {
         let app = AXUIElementCreateApplication(pid)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
             let windows = value as? [AXUIElement]
-        else { return [] }
+        else { return nil }
         return windows.filter {
             var subrole: CFTypeRef?
             return AXUIElementCopyAttributeValue($0, kAXSubroleAttribute as CFString, &subrole) == .success

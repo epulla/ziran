@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import os
 
 @MainActor
 final class SwitcherTap {
@@ -53,6 +54,8 @@ final class SwitcherTap {
     private func handle(_ proxy: CGEventTapProxy, type: CGEventType, eventPointer: UInt) -> Bool {
         let event = Unmanaged<CGEvent>.fromOpaque(UnsafeRawPointer(bitPattern: eventPointer)!).takeUnretainedValue()
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            Logger(subsystem: "com.epulla.ziran", category: "SwitcherTap").notice(
+                "Event tap disabled: \(type == .tapDisabledByTimeout ? "timeout" : "user input", privacy: .public)")
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return false
         }

@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import os
 
 @MainActor
 final class WindowTracker {
@@ -7,6 +8,7 @@ final class WindowTracker {
     private var lastActivation: [pid_t: Date] = [:]
     private var observers: [pid_t: AXObserver] = [:]
     private var elements: [CGWindowID: AXUIElement] = [:]
+    private var lastWindows: [pid_t: [(WindowInfo, AXUIElement)]] = [:]
     private var workspaceObservers: [NSObjectProtocol] = []
 
     func start() {
@@ -55,6 +57,9 @@ final class WindowTracker {
     }
 
     func snapshot() -> [WindowInfo] {
+        let system = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(system, 0.1)
+        defer { AXUIElementSetMessagingTimeout(system, 0) }
         let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let screen = info.compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
         let zOrder = info.compactMap { $0[kCGWindowLayer as String] as? Int == 0 ? $0[kCGWindowNumber as String] as? CGWindowID : nil }
@@ -69,15 +74,28 @@ final class WindowTracker {
         var current: [CGWindowID: AXUIElement] = [:]
         let ownPID = NSRunningApplication.current.processIdentifier
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular && app.processIdentifier != ownPID {
-            for el in AX.windows(pid: app.processIdentifier) {
+            let pid = app.processIdentifier
+            guard let appWindows = AX.windows(pid: pid) else {
+                Logger(subsystem: "com.epulla.ziran", category: "WindowTracker").notice(
+                    "Window snapshot failed for \(app.localizedName ?? "Unknown", privacy: .public) (pid \(pid))")
+                for (window, element) in lastWindows[pid] ?? [] where onScreen.contains(window.id) || window.isMinimized {
+                    windows.append(window)
+                    current[window.id] = element
+                }
+                continue
+            }
+            var known: [(WindowInfo, AXUIElement)] = []
+            for el in appWindows {
                 guard let id = AX.windowID(el), onScreen.contains(id) || AX.isMinimized(el) else { continue }
                 let window = windowInfo[id]
-                windows.append(
-                    WindowInfo(
-                        id: id, pid: app.processIdentifier, bundleId: app.bundleIdentifier ?? "", appName: app.localizedName ?? "", title: AX.title(el),
-                        isMinimized: AX.isMinimized(el), frame: window?.0, zOrder: window?.1 ?? .max))
+                let item = WindowInfo(
+                    id: id, pid: app.processIdentifier, bundleId: app.bundleIdentifier ?? "", appName: app.localizedName ?? "", title: AX.title(el),
+                    isMinimized: AX.isMinimized(el), frame: window?.0, zOrder: window?.1 ?? .max)
+                windows.append(item)
                 current[id] = el
+                known.append((item, el))
             }
+            lastWindows[pid] = known
         }
         elements = current
         let kept = Set(windows.map(\.id))
