@@ -14,14 +14,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Ziran")
         statusItem.button?.toolTip = "Ziran"
         let menu = NSMenu()
-        menu.addItem(withTitle: "Window", action: nil, keyEquivalent: "").submenu = windowMenu()
+        let windowItem = menu.addItem(withTitle: "Window", action: nil, keyEquivalent: "")
+        windowItem.submenu = windowMenu()
         menu.addItem(.separator())
         let preferencesItem = menu.addItem(withTitle: "Preferences…", action: #selector(showPreferences), keyEquivalent: ",")
         preferencesItem.target = self
         let aboutItem = menu.addItem(withTitle: "About Ziran", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Ziran", action: #selector(quit), keyEquivalent: "q").target = self
+        let quitItem = menu.addItem(withTitle: "Quit Ziran", action: #selector(quit), keyEquivalent: "q")
+        quitItem.target = self
+        for (item, symbol) in [(windowItem, "macwindow"), (preferencesItem, "gearshape"), (aboutItem, "info.circle"), (quitItem, "power")] {
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        }
         statusItem.menu = menu
         Settings.applyLaunchAtLoginDefault()
 
@@ -56,23 +61,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let key = { (code: Int) in String(utf16CodeUnits: [unichar(code)], count: 1) }
         let resize: NSEvent.ModifierFlags = [.control, .option]
         let display: NSEvent.ModifierFlags = [.control, .option, .command]
-        let entries: [(title: String, key: String, modifiers: NSEvent.ModifierFlags, command: WindowResizer.Command)?] = [
-            ("Left Half", key(NSLeftArrowFunctionKey), resize, .layout(.leftHalf)),
-            ("Right Half", key(NSRightArrowFunctionKey), resize, .layout(.rightHalf)),
-            ("Top Half", key(NSUpArrowFunctionKey), resize, .layout(.topHalf)),
-            ("Bottom Half", key(NSDownArrowFunctionKey), resize, .layout(.bottomHalf)),
+        let entries: [(title: String, key: String, modifiers: NSEvent.ModifierFlags, command: WindowResizer.Command, symbol: String)?] = [
+            ("Left Half", key(NSLeftArrowFunctionKey), resize, .layout(.leftHalf), "rectangle.lefthalf.filled"),
+            ("Right Half", key(NSRightArrowFunctionKey), resize, .layout(.rightHalf), "rectangle.righthalf.filled"),
+            ("Top Half", key(NSUpArrowFunctionKey), resize, .layout(.topHalf), "rectangle.tophalf.filled"),
+            ("Bottom Half", key(NSDownArrowFunctionKey), resize, .layout(.bottomHalf), "rectangle.bottomhalf.filled"),
             nil,
-            ("Top Left", "u", resize, .layout(.topLeft)),
-            ("Top Right", "i", resize, .layout(.topRight)),
-            ("Bottom Left", "j", resize, .layout(.bottomLeft)),
-            ("Bottom Right", "k", resize, .layout(.bottomRight)),
+            ("Top Left", "u", resize, .layout(.topLeft), "rectangle.inset.topleft.filled"),
+            ("Top Right", "i", resize, .layout(.topRight), "rectangle.inset.topright.filled"),
+            ("Bottom Left", "j", resize, .layout(.bottomLeft), "rectangle.inset.bottomleft.filled"),
+            ("Bottom Right", "k", resize, .layout(.bottomRight), "rectangle.inset.bottomright.filled"),
             nil,
-            ("Maximize (or ⌃⌥F)", "\r", resize, .layout(.maximize)),
-            ("Center", "c", resize, .layout(.center)),
-            ("Restore", key(NSBackspaceCharacter), resize, .restore),
+            ("Maximize (or ⌃⌥F)", "\r", resize, .layout(.maximize), "rectangle.inset.filled"),
+            ("Center", "c", resize, .layout(.center), "rectangle.center.inset.filled"),
+            ("Restore", key(NSBackspaceCharacter), resize, .restore, "arrow.uturn.backward"),
             nil,
-            ("Next Display", key(NSRightArrowFunctionKey), display, .nextDisplay),
-            ("Previous Display", key(NSLeftArrowFunctionKey), display, .previousDisplay),
+            ("Next Display", key(NSRightArrowFunctionKey), display, .nextDisplay, "arrow.right.square"),
+            ("Previous Display", key(NSLeftArrowFunctionKey), display, .previousDisplay, "arrow.left.square"),
         ]
         let menu = NSMenu()
         for entry in entries {
@@ -83,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let item = menu.addItem(withTitle: entry.title, action: #selector(resizeWindow), keyEquivalent: entry.key)
             item.keyEquivalentModifierMask = entry.modifiers
             item.representedObject = entry.command
+            item.image = NSImage(systemSymbolName: entry.symbol, accessibilityDescription: nil)
             item.target = self
         }
         return menu
