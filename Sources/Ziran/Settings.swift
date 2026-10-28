@@ -1,4 +1,5 @@
 import Foundation
+import ServiceManagement
 
 struct LayoutTemplate: Codable, Equatable {
     struct Slot: Codable, Equatable, Hashable {
@@ -50,6 +51,13 @@ enum Settings {
             return templates
         }
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "layoutTemplates") }
+    }
+
+    // Launch at login defaults to on: register once on first run, then respect the user's choice.
+    static func applyLaunchAtLoginDefault(register: () throws -> Void = { try SMAppService.mainApp.register() }) {
+        guard !defaults.bool(forKey: "launchAtLoginDefaultApplied") else { return }
+        defaults.set(true, forKey: "launchAtLoginDefaultApplied")
+        try? register()
     }
 
     private static func value(_ key: String, default fallback: Double, range: ClosedRange<Double>) -> Double {

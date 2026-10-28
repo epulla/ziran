@@ -96,7 +96,7 @@ Open menubar icon → Preferences… (⌘,).
 
 - Font size: 11–28 pt
 - Icon size: 48–160 pt for strip tiles
-- Launch at login
+- Launch at login (on by default)
 - Window resize shortcuts on/off
 - Quick Nav tab: add files, folders, apps (⌘O) or web addresses (⌘L), reorder (⌘↑/⌘↓ or drag), and remove (⌫) bookmarks
 

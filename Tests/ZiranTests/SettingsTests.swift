@@ -62,3 +62,14 @@ import Testing
     Settings.defaults.removePersistentDomain(forName: "ZiranTests")
     Settings.defaults = .standard
 }
+
+@MainActor @Test func launchAtLoginRegistersOnlyOnFirstRun() {
+    Settings.defaults = UserDefaults(suiteName: "ZiranTests")!
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
+    var registrations = 0
+    Settings.applyLaunchAtLoginDefault { registrations += 1 }
+    Settings.applyLaunchAtLoginDefault { registrations += 1 }
+    #expect(registrations == 1)
+    Settings.defaults.removePersistentDomain(forName: "ZiranTests")
+    Settings.defaults = .standard
+}
